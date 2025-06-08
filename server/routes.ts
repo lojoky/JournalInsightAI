@@ -13,7 +13,10 @@ import { analyzeJournalEntry, analyzeSentiment } from "./openai";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
-import sharp from "sharp";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // Configure multer for file uploads
 const upload = multer({
@@ -115,18 +118,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Convert HEIC to JPEG if needed for better OCR compatibility
       let processedImagePath = req.file.path;
+      let conversionWarning = null;
+      
       if (req.file.mimetype === 'image/heic' || req.file.originalname.toLowerCase().endsWith('.heic')) {
+        const convertedPath = req.file.path.replace(/\.heic$/i, '.jpg');
+        
+        // Try multiple conversion methods
+        let conversionSuccess = false;
+        
+        // Method 1: heif-convert
         try {
-          const convertedPath = req.file.path.replace(/\.heic$/i, '.jpg');
-          await sharp(req.file.path)
-            .jpeg({ quality: 90 })
-            .toFile(convertedPath);
-          
+          await execAsync(`heif-convert "${req.file.path}" "${convertedPath}"`);
           processedImagePath = convertedPath;
-          console.log('HEIC converted to JPEG successfully');
+          conversionSuccess = true;
+          console.log('HEIC converted to JPEG successfully using heif-convert');
         } catch (error) {
-          console.error('HEIC conversion failed:', error);
-          // Continue with original file if conversion fails
+          console.log('heif-convert failed, trying ImageMagick...');
+        }
+        
+        // Method 2: ImageMagick if heif-convert failed
+        if (!conversionSuccess) {
+          try {
+            await execAsync(`convert "${req.file.path}" "${convertedPath}"`);
+            processedImagePath = convertedPath;
+            conversionSuccess = true;
+            console.log('HEIC converted to JPEG successfully using ImageMagick');
+          } catch (error) {
+            console.log('ImageMagick conversion also failed');
+          }
+        }
+        
+        if (!conversionSuccess) {
+          conversionWarning = "HEIC file could not be converted. For best results, please convert to JPEG or PNG before uploading.";
+          console.error('All HEIC conversion methods failed');
         }
       }
 
@@ -142,7 +166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: entry.id,
         message: "Image uploaded successfully",
         imageUrl: entry.originalImageUrl,
-        processedImagePath: processedImagePath !== req.file.path ? processedImagePath.replace(process.cwd(), '') : undefined
+        processedImagePath: processedImagePath !== req.file.path ? processedImagePath.replace(process.cwd(), '') : undefined,
+        warning: conversionWarning
       });
     } catch (error) {
       console.error("Upload error:", error);
