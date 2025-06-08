@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import fs from "fs/promises";
+import path from "path";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
@@ -225,5 +227,54 @@ Please respond with JSON in this format:
       "How do these thoughts connect to your values and goals?",
       "What would you like to explore further about this topic?"
     ];
+  }
+}
+
+export async function extractTextFromImage(imagePath: string): Promise<{ text: string; confidence: number }> {
+  try {
+    // Read the image file and convert to base64
+    const imageBuffer = await fs.readFile(imagePath);
+    const base64Image = imageBuffer.toString('base64');
+    
+    // Determine the image format from the file extension
+    const ext = path.extname(imagePath).toLowerCase();
+    const mimeType = ext === '.png' ? 'image/png' : 
+                    ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                    'image/jpeg'; // fallback
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Please extract all handwritten and printed text from this image. Focus on accuracy and preserve the original formatting as much as possible. If the handwriting is difficult to read, provide your best interpretation. Return only the extracted text, no commentary."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000,
+    });
+
+    const extractedText = response.choices[0].message.content?.trim() || "";
+    
+    // GPT-4o typically has high confidence for text extraction
+    const confidence = extractedText.length > 0 ? 95 : 0;
+    
+    return {
+      text: extractedText,
+      confidence: confidence
+    };
+  } catch (error) {
+    console.error('OpenAI vision OCR error:', error);
+    throw new Error('Failed to extract text using OpenAI vision');
   }
 }

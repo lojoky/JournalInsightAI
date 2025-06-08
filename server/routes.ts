@@ -9,7 +9,7 @@ import {
   insertEntryTagSchema,
   insertSentimentAnalysisSchema
 } from "@shared/schema";
-import { analyzeJournalEntry, analyzeSentiment } from "./openai";
+import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -175,7 +175,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Process OCR transcription
+  // Extract text using OpenAI Vision (much better for handwriting)
+  app.post("/api/journal-entries/:id/extract-text", async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const entry = await storage.getJournalEntry(entryId);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      // Get the image path - use converted image if available
+      const imagePath = path.join(process.cwd(), entry.originalImageUrl!);
+      const convertedPath = imagePath.replace(/\.heic$/i, '.jpg');
+      
+      let imageToProcess = imagePath;
+      try {
+        await fs.access(convertedPath);
+        imageToProcess = convertedPath; // Use converted image if it exists
+      } catch {
+        // Use original if converted doesn't exist
+      }
+
+      // Extract text using OpenAI Vision
+      const result = await extractTextFromImage(imageToProcess);
+
+      // Update entry with transcription
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText: result.text,
+        ocrConfidence: result.confidence,
+        processingStatus: "transcribed"
+      });
+
+      res.json({
+        transcribedText: result.text,
+        confidence: result.confidence,
+        entry: updatedEntry
+      });
+    } catch (error) {
+      console.error("OpenAI text extraction error:", error);
+      res.status(500).json({ message: "Failed to extract text from image" });
+    }
+  });
+
+  // Process OCR transcription (legacy endpoint for Tesseract)
   app.post("/api/journal-entries/:id/transcribe", async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);

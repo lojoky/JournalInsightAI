@@ -66,7 +66,23 @@ export function useJournalProcessing() {
     }
   });
 
-  // Transcription mutation
+  // OpenAI Vision text extraction mutation (better than Tesseract for handwriting)
+  const aiTextExtractionMutation = useMutation({
+    mutationFn: async (entryId: number) => {
+      const response = await apiRequest('POST', `/api/journal-entries/${entryId}/extract-text`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCurrentEntry(prev => prev ? {
+        ...prev,
+        transcribedText: data.transcribedText,
+        ocrConfidence: data.confidence,
+        processingStatus: 'processing'
+      } : null);
+    }
+  });
+
+  // Legacy Tesseract transcription mutation
   const transcriptionMutation = useMutation({
     mutationFn: async ({ entryId, transcribedText, confidence }: { 
       entryId: number; 
@@ -150,29 +166,9 @@ export function useJournalProcessing() {
       // 1. Upload file
       const uploadResult = await uploadMutation.mutateAsync({ file, title });
       
-      // 2. Determine which image to use for OCR - server-converted if available, otherwise preprocess original
-      let imageForOCR: File;
-      if (uploadResult.processedImagePath) {
-        // Use server-converted image
-        const response = await fetch(uploadResult.processedImagePath);
-        const blob = await response.blob();
-        imageForOCR = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
-      } else {
-        // Use preprocessed original image
-        imageForOCR = await preprocessImageForOCR(file);
-      }
-      
-      // 3. Process OCR
-      const ocrResult = await processImageWithOCR(imageForOCR, (progress) => {
-        console.log('OCR Progress:', progress);
-      });
-
-      // 4. Update with transcription
-      await transcriptionMutation.mutateAsync({
-        entryId: uploadResult.id,
-        transcribedText: ocrResult.text,
-        confidence: ocrResult.confidence
-      });
+      // 2. Extract text using OpenAI Vision (much better for handwriting than Tesseract)
+      console.log('Extracting text using OpenAI Vision...');
+      await aiTextExtractionMutation.mutateAsync(uploadResult.id);
 
       // 5. Analyze with AI
       await analysisMutation.mutateAsync(uploadResult.id);
