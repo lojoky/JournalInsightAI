@@ -1,4 +1,5 @@
 import Tesseract from 'tesseract.js';
+import heic2any from 'heic2any';
 
 export interface OCRResult {
   text: string;
@@ -9,25 +10,66 @@ export async function processImageWithOCR(
   imageFile: File,
   onProgress?: (progress: number) => void
 ): Promise<OCRResult> {
-  return new Promise((resolve, reject) => {
-    Tesseract.recognize(imageFile, 'eng', {
-      logger: (m) => {
-        if (m.status === 'recognizing text' && onProgress) {
-          onProgress(Math.round(m.progress * 100));
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Convert HEIC to supported format if needed
+      const processedFile = await convertImageForOCR(imageFile);
+      
+      Tesseract.recognize(processedFile, 'eng', {
+        logger: (m) => {
+          if (m.status === 'recognizing text' && onProgress) {
+            onProgress(Math.round(m.progress * 100));
+          }
         }
-      }
-    })
-    .then(({ data: { text, confidence } }) => {
-      resolve({
-        text: text.trim(),
-        confidence: Math.round(confidence)
+      })
+      .then(({ data: { text, confidence } }) => {
+        resolve({
+          text: text.trim(),
+          confidence: Math.round(confidence)
+        });
+      })
+      .catch((error) => {
+        console.error('OCR Error:', error);
+        reject(new Error('Failed to process image with OCR'));
       });
-    })
-    .catch((error) => {
-      console.error('OCR Error:', error);
-      reject(new Error('Failed to process image with OCR'));
-    });
+    } catch (error) {
+      console.error('Image conversion error:', error);
+      reject(new Error('Failed to convert image for OCR'));
+    }
   });
+}
+
+async function convertImageForOCR(file: File): Promise<File> {
+  // If it's already a supported format, return as-is
+  if (file.type === 'image/jpeg' || file.type === 'image/jpg' || file.type === 'image/png') {
+    return file;
+  }
+
+  // Handle HEIC files specifically
+  if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+    try {
+      console.log('Converting HEIC to JPEG for OCR processing...');
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9
+      }) as Blob;
+      
+      const convertedFile = new File([convertedBlob], file.name.replace(/\.heic$/i, '.jpg'), {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      
+      console.log('HEIC conversion successful');
+      return convertedFile;
+    } catch (error) {
+      console.error('HEIC conversion failed:', error);
+      throw new Error('Failed to convert HEIC image for OCR processing');
+    }
+  }
+
+  // For other unsupported formats, return original and let OCR handle it
+  return file;
 }
 
 export function preprocessImageForOCR(file: File): Promise<File> {
