@@ -9,32 +9,24 @@ export async function processImageWithOCR(
   imageFile: File,
   onProgress?: (progress: number) => void
 ): Promise<OCRResult> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Convert HEIC to supported format if needed
-      const processedFile = await convertImageForOCR(imageFile);
-      
-      Tesseract.recognize(processedFile, 'eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text' && onProgress) {
-            onProgress(Math.round(m.progress * 100));
-          }
+  return new Promise((resolve, reject) => {
+    Tesseract.recognize(imageFile, 'eng', {
+      logger: (m) => {
+        if (m.status === 'recognizing text' && onProgress) {
+          onProgress(Math.round(m.progress * 100));
         }
-      })
-      .then(({ data: { text, confidence } }) => {
-        resolve({
-          text: text.trim(),
-          confidence: Math.round(confidence)
-        });
-      })
-      .catch((error) => {
-        console.error('OCR Error:', error);
-        reject(new Error('Failed to process image with OCR'));
+      }
+    })
+    .then(({ data: { text, confidence } }) => {
+      resolve({
+        text: text.trim(),
+        confidence: Math.round(confidence)
       });
-    } catch (error) {
-      console.error('Image conversion error:', error);
-      reject(new Error('Failed to convert image for OCR'));
-    }
+    })
+    .catch((error) => {
+      console.error('OCR Error:', error);
+      reject(new Error('Failed to process image with OCR'));
+    });
   });
 }
 

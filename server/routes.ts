@@ -13,6 +13,7 @@ import { analyzeJournalEntry, analyzeSentiment } from "./openai";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import sharp from "sharp";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -112,6 +113,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { title = "Untitled Entry" } = req.body;
       
+      // Convert HEIC to JPEG if needed for better OCR compatibility
+      let processedImagePath = req.file.path;
+      if (req.file.mimetype === 'image/heic' || req.file.originalname.toLowerCase().endsWith('.heic')) {
+        try {
+          const convertedPath = req.file.path.replace(/\.heic$/i, '.jpg');
+          await sharp(req.file.path)
+            .jpeg({ quality: 90 })
+            .toFile(convertedPath);
+          
+          processedImagePath = convertedPath;
+          console.log('HEIC converted to JPEG successfully');
+        } catch (error) {
+          console.error('HEIC conversion failed:', error);
+          // Continue with original file if conversion fails
+        }
+      }
+
       // Create journal entry with pending status
       const entry = await storage.createJournalEntry({
         userId: defaultUser.id,
@@ -123,7 +141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         id: entry.id,
         message: "Image uploaded successfully",
-        imageUrl: entry.originalImageUrl
+        imageUrl: entry.originalImageUrl,
+        processedImagePath: processedImagePath !== req.file.path ? processedImagePath.replace(process.cwd(), '') : undefined
       });
     } catch (error) {
       console.error("Upload error:", error);
