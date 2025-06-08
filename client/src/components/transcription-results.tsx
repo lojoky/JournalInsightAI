@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Edit, Copy, Download } from "lucide-react";
+import { Edit, Copy, Download, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { JournalEntryWithDetails } from "@shared/schema";
 

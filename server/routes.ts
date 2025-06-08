@@ -32,14 +32,24 @@ const upload = multer({
     }
   }),
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|heic/;
+    console.log('File filter check:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    });
+    
+    const allowedTypes = /jpeg|jpg|png|heic|webp/;
+    const allowedMimes = /image\/(jpeg|jpg|png|heic|webp)/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const mimetype = allowedMimes.test(file.mimetype.toLowerCase());
 
-    if (mimetype && extname) {
+    console.log('Validation results:', { extname, mimetype });
+
+    if (mimetype || extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Only image files (JPEG, JPG, PNG, HEIC) are allowed!'));
+      console.log('File rejected:', file.originalname, file.mimetype);
+      cb(new Error('Only image files (JPEG, JPG, PNG, HEIC, WEBP) are allowed!'));
     }
   },
   limits: {
@@ -86,7 +96,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload journal entry image
   app.post("/api/journal-entries/upload", upload.single('image'), async (req, res) => {
     try {
+      console.log("Upload request received:");
+      console.log("- Files:", req.file);
+      console.log("- Body:", req.body);
+      console.log("- Content-Type:", req.headers['content-type']);
+      
       if (!req.file) {
+        console.log("No file found in request");
         return res.status(400).json({ message: "No image file provided" });
       }
 

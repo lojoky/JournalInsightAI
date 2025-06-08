@@ -27,12 +27,17 @@ export function useJournalProcessing() {
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title }: { file: File; title: string }) => {
+      console.log('Starting upload for file:', file.name, file.type, file.size);
+      
       const formData = new FormData();
       formData.append('image', file);
       formData.append('title', title);
 
+      console.log('FormData created, sending request...');
       const response = await apiRequest('POST', '/api/journal-entries/upload', formData);
-      return response.json() as Promise<UploadResponse>;
+      const result = await response.json() as UploadResponse;
+      console.log('Upload successful:', result);
+      return result;
     },
     onSuccess: (data) => {
       setCurrentEntry({
@@ -54,7 +59,7 @@ export function useJournalProcessing() {
       console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your file.",
+        description: error instanceof Error ? error.message : "There was an error uploading your file.",
         variant: "destructive",
       });
     }
