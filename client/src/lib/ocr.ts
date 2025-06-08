@@ -1,5 +1,4 @@
 import Tesseract from 'tesseract.js';
-import heic2any from 'heic2any';
 
 export interface OCRResult {
   text: string;
@@ -49,6 +48,7 @@ async function convertImageForOCR(file: File): Promise<File> {
   if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
     try {
       console.log('Converting HEIC to JPEG for OCR processing...');
+      const heic2any = (await import('heic2any')).default;
       const convertedBlob = await heic2any({
         blob: file,
         toType: 'image/jpeg',
