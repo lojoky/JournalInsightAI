@@ -35,10 +35,10 @@ export default function Home() {
               </div>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
-              <a href="#" className="text-[#111827] hover:text-[#6366F1] font-medium">Dashboard</a>
-              <a href="#" className="text-gray-600 hover:text-[#6366F1]">Entries</a>
-              <a href="#" className="text-gray-600 hover:text-[#6366F1]">Insights</a>
-              <a href="#" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
+              <span className="text-[#111827] hover:text-[#6366F1] font-medium">Dashboard</span>
+              <a href="/entries" className="text-gray-600 hover:text-[#6366F1]">Entries</a>
+              <a href="/insights" className="text-gray-600 hover:text-[#6366F1]">Insights</a>
+              <a href="/settings" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
             </nav>
             <button className="bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">
               <span className="mr-2">+</span>New Entry
