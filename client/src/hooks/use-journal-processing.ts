@@ -170,7 +170,7 @@ export function useJournalProcessing() {
       console.log('Extracting text using OpenAI Vision...');
       await aiTextExtractionMutation.mutateAsync(uploadResult.id);
 
-      // 5. Analyze with AI
+      // 3. Analyze with AI
       await analysisMutation.mutateAsync(uploadResult.id);
 
       toast({
