@@ -13,9 +13,14 @@ export default function FileUpload({ onFileUpload, isProcessing }: FileUploadPro
   const { toast } = useToast();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
+    console.log('Files dropped:', acceptedFiles);
+    if (acceptedFiles.length === 0) {
+      console.log('No files accepted');
+      return;
+    }
 
     const file = acceptedFiles[0];
+    console.log('Processing file:', file.name, file.type, file.size);
     
     try {
       await onFileUpload(file, file.name.replace(/\.[^/.]+$/, ""));
@@ -24,9 +29,10 @@ export default function FileUpload({ onFileUpload, isProcessing }: FileUploadPro
         description: "Your journal image has been uploaded and processing has started.",
       });
     } catch (error) {
+      console.error('File upload error:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your file. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error uploading your file. Please try again.",
         variant: "destructive",
       });
     }

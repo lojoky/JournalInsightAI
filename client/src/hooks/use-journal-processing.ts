@@ -48,12 +48,12 @@ export function useJournalProcessing() {
         ocrConfidence: null,
         processingStatus: 'pending',
         userId: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
         themes: [],
         tags: [],
         sentimentAnalysis: undefined
-      });
+      } as any);
     },
     onError: (error) => {
       console.error('Upload error:', error);
