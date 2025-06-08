@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -48,7 +49,7 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create default user for demo purposes
-  let defaultUser;
+  let defaultUser: any = null;
   try {
     defaultUser = await storage.getUserByUsername("demo");
     if (!defaultUser) {
@@ -296,7 +297,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Serve uploaded files
-  app.use('/uploads', require('express').static(path.join(process.cwd(), 'uploads')));
+  const expressStatic = express.static;
+  app.use('/uploads', expressStatic(path.join(process.cwd(), 'uploads')));
 
   const httpServer = createServer(app);
   return httpServer;
