@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bookmark, Clock } from "lucide-react";
+import { Link } from "wouter";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function RecentEntries() {
@@ -97,74 +98,78 @@ export default function RecentEntries() {
     <div className="mt-12">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-bold text-[#111827]">Recent Entries</h3>
-        <a href="#" className="text-[#6366F1] hover:text-indigo-700 font-medium">
-          View All
-        </a>
+        <Link href="/entries">
+          <span className="text-[#6366F1] hover:text-indigo-700 font-medium cursor-pointer">
+            View All
+          </span>
+        </Link>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {entries.map((entry) => (
-          <Card key={entry.id} className="journal-card hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  {entry.originalImageUrl && (
-                    <img
-                      src={entry.originalImageUrl}
-                      alt="Entry thumbnail"
-                      className="w-8 h-8 rounded object-cover"
-                    />
-                  )}
-                  <div>
-                    <h4 className="font-medium text-[#111827] truncate max-w-32">
-                      {entry.title}
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      {formatDate(entry.createdAt)}
-                    </p>
+          <Link key={entry.id} href={`/entry/${entry.id}`}>
+            <Card className="journal-card hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      {entry.originalImageUrl && (
+                        <img
+                          src={entry.originalImageUrl}
+                          alt="Entry thumbnail"
+                          className="w-8 h-8 rounded object-cover"
+                        />
+                      )}
+                      <div>
+                        <h4 className="font-medium text-[#111827] truncate max-w-32">
+                          {entry.title}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(entry.createdAt.toString())}
+                        </p>
+                      </div>
+                    </div>
+                    <Bookmark className="w-4 h-4 text-gray-300 hover:text-[#F59E0B] cursor-pointer" />
                   </div>
-                </div>
-                <Bookmark className="w-4 h-4 text-gray-300 hover:text-[#F59E0B] cursor-pointer" />
-              </div>
-              
-              {entry.transcribedText && (
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                  {entry.transcribedText.slice(0, 150)}
-                  {entry.transcribedText.length > 150 ? "..." : ""}
-                </p>
-              )}
-              
-              {entry.tags && entry.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {entry.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="px-2 py-1 text-xs font-medium rounded"
-                      style={{
-                        backgroundColor: `${tag.color}10`,
-                        color: tag.color
-                      }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                  {entry.tags.length > 3 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                      +{entry.tags.length - 3}
-                    </span>
+                  
+                  {entry.transcribedText && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {entry.transcribedText.slice(0, 150)}
+                      {entry.transcribedText.length > 150 ? "..." : ""}
+                    </p>
                   )}
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{getWordCount(entry.transcribedText)} words</span>
-                <span className="flex items-center space-x-1">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(entry.processingStatus)}`} />
-                  <span>{getStatusText(entry.processingStatus)}</span>
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                  
+                  {entry.tags && entry.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {entry.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="px-2 py-1 text-xs font-medium rounded"
+                          style={{
+                            backgroundColor: `${tag.color || '#6366F1'}10`,
+                            color: tag.color || '#6366F1'
+                          }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                      {entry.tags.length > 3 && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                          +{entry.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{getWordCount(entry.transcribedText || '')} words</span>
+                    <span className="flex items-center space-x-1">
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(entry.processingStatus)}`} />
+                      <span>{getStatusText(entry.processingStatus)}</span>
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
         ))}
       </div>
     </div>
