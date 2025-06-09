@@ -10,6 +10,7 @@ import {
   insertSentimentAnalysisSchema
 } from "@shared/schema";
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
+import { retryFailedEntries } from "./retry-processing";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";

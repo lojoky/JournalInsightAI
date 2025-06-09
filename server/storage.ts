@@ -20,7 +20,7 @@ import {
   type JournalEntryWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -51,6 +51,9 @@ export interface IStorage {
   // Sentiment analysis methods
   createSentimentAnalysis(sentiment: InsertSentimentAnalysis): Promise<SentimentAnalysis>;
   getSentimentByEntry(entryId: number): Promise<SentimentAnalysis | undefined>;
+
+  // Failed entries methods
+  getFailedEntries(): Promise<JournalEntry[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -245,6 +248,16 @@ export class DatabaseStorage implements IStorage {
       .from(sentimentAnalysis)
       .where(eq(sentimentAnalysis.entryId, entryId));
     return sentiment || undefined;
+  }
+
+  async getFailedEntries(): Promise<JournalEntry[]> {
+    const entries = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.processingStatus, 'pending'))
+      .orderBy(desc(journalEntries.createdAt));
+    
+    return entries;
   }
 }
 
