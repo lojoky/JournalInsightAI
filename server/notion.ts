@@ -44,17 +44,20 @@ export async function setupJournalDatabase() {
 
     // Look for existing journal database
     for (const block of response.results) {
-      if (block.type === "child_database") {
+      if (block.object === 'block' && (block as any).type === "child_database") {
         try {
           const databaseInfo = await notion.databases.retrieve({
             database_id: block.id,
           });
 
           // Check if this is our journal database
-          if (databaseInfo.title && Array.isArray(databaseInfo.title) && databaseInfo.title.length > 0) {
-            const dbTitle = databaseInfo.title[0]?.plain_text?.toLowerCase() || "";
-            if (dbTitle.includes("journal") || dbTitle.includes("entries")) {
-              return databaseInfo.id;
+          if (databaseInfo.object === 'database' && (databaseInfo as any).title) {
+            const title = (databaseInfo as any).title;
+            if (Array.isArray(title) && title.length > 0) {
+              const dbTitle = title[0]?.plain_text?.toLowerCase() || "";
+              if (dbTitle.includes("journal") || dbTitle.includes("entries")) {
+                return databaseInfo.id;
+              }
             }
           }
         } catch (error) {

@@ -65,6 +65,20 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Notion if configured
+  if (process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL) {
+    const { initializeNotion } = await import("./notion");
+    const notionInitialized = initializeNotion(
+      process.env.NOTION_INTEGRATION_SECRET,
+      process.env.NOTION_PAGE_URL
+    );
+    if (notionInitialized) {
+      console.log("Notion integration initialized successfully");
+    } else {
+      console.log("Failed to initialize Notion integration");
+    }
+  }
+
   // Setup authentication
   await setupAuth(app);
 
