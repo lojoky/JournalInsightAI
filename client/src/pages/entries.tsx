@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, FileText, Tag } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Tag, Download } from "lucide-react";
 import { Link } from "wouter";
+import ExportDialog from "@/components/export-dialog";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {
@@ -44,6 +45,12 @@ export default function Entries() {
                 <p className="text-sm text-gray-500">{entries?.length || 0} entries</p>
               </div>
             </div>
+            <ExportDialog>
+              <Button className="bg-[#6366F1] hover:bg-indigo-700">
+                <Download className="w-4 h-4 mr-2" />
+                Export All
+              </Button>
+            </ExportDialog>
           </div>
         </div>
       </div>

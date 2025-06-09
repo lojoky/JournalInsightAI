@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, User, Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Brain, User, Menu, Download } from "lucide-react";
 import FileUpload from "@/components/file-upload";
 import ProcessingStatus from "@/components/processing-status";
 import TranscriptionResults from "@/components/transcription-results";
 import AIAnalysis from "@/components/ai-analysis";
 import TagSystem from "@/components/tag-system";
 import RecentEntries from "@/components/recent-entries";
+import ExportDialog from "@/components/export-dialog";
 import { useJournalProcessing } from "@/hooks/use-journal-processing";
 
 export default function Home() {
@@ -42,9 +44,17 @@ export default function Home() {
               <a href="/insights" className="text-gray-600 hover:text-[#6366F1]">Insights</a>
               <a href="/settings" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
             </nav>
-            <button className="bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">
-              <span className="mr-2">+</span>New Entry
-            </button>
+            <div className="flex items-center space-x-3">
+              <ExportDialog>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </ExportDialog>
+              <button className="bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">
+                <span className="mr-2">+</span>New Entry
+              </button>
+            </div>
           </div>
         </div>
       </header>
