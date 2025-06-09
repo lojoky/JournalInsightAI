@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import RetryFailedEntries from "@/components/retry-failed-entries";
+import NotionConfigDialog from "@/components/notion-config-dialog";
 
 export default function Settings() {
   return (
@@ -47,9 +48,11 @@ export default function Settings() {
                 <h4 className="text-sm font-medium text-gray-900">Sync to Notion</h4>
                 <p className="text-sm text-gray-500">Store journal entries in your Notion workspace</p>
               </div>
-              <Button variant="outline" size="sm">
-                Configure
-              </Button>
+              <NotionConfigDialog>
+                <Button variant="outline" size="sm">
+                  Configure
+                </Button>
+              </NotionConfigDialog>
             </div>
             
             <div className="bg-blue-50 p-4 rounded-md">
