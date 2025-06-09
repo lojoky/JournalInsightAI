@@ -525,21 +525,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
       const { notionIntegrationSecret, notionPageUrl } = req.body;
       
+      console.log('Notion settings update request:', {
+        userId,
+        hasSecret: !!notionIntegrationSecret,
+        hasPageUrl: !!notionPageUrl,
+        userObject: JSON.stringify((req as any).user, null, 2)
+      });
+      
       if (!userId) {
+        console.error('No userId found in request');
         return res.status(401).json({ message: "User not authenticated" });
       }
       
+      if (!notionIntegrationSecret || !notionPageUrl) {
+        console.error('Missing required fields:', { notionIntegrationSecret: !!notionIntegrationSecret, notionPageUrl: !!notionPageUrl });
+        return res.status(400).json({ message: "Notion integration secret and page URL are required" });
+      }
+      
       // Update user with Notion credentials
+      console.log('Attempting to upsert user with Notion settings...');
       await storage.upsertUser({
         id: userId,
         notionIntegrationSecret,
         notionPageUrl,
       });
       
+      console.log('Notion settings updated successfully for user:', userId);
       res.json({ message: "Notion settings updated successfully" });
     } catch (error) {
       console.error("Update Notion settings error:", error);
-      res.status(500).json({ message: "Failed to update Notion settings" });
+      res.status(500).json({ message: "Failed to update Notion settings", error: error.message });
     }
   });
 
