@@ -87,6 +87,9 @@ export async function setupJournalDatabase() {
         Content: {
           rich_text: {}
         },
+        Summary: {
+          rich_text: {}
+        },
         Tags: {
           multi_select: {
             options: [
@@ -94,13 +97,24 @@ export async function setupJournalDatabase() {
               { name: "career", color: "green" },
               { name: "relationships", color: "pink" },
               { name: "health", color: "orange" },
-              { name: "personal", color: "purple" }
+              { name: "personal", color: "purple" },
+              { name: "gratitude", color: "yellow" },
+              { name: "reflection", color: "gray" },
+              { name: "decisions", color: "brown" },
+              { name: "mindfulness", color: "purple" },
+              { name: "family", color: "red" }
             ]
+          }
+        },
+        Themes: {
+          multi_select: {
+            options: []
           }
         },
         Sentiment: {
           select: {
             options: [
+              { name: "Very Positive", color: "green" },
               { name: "Positive", color: "green" },
               { name: "Neutral", color: "gray" },
               { name: "Concern", color: "yellow" },
@@ -108,13 +122,33 @@ export async function setupJournalDatabase() {
             ]
           }
         },
-        Confidence: {
+        "Sentiment Score": {
+          number: {
+            format: "percent"
+          }
+        },
+        "OCR Confidence": {
           number: {
             format: "percent"
           }
         },
         Date: {
           date: {}
+        },
+        "Word Count": {
+          number: {}
+        },
+        "Reflection Questions": {
+          rich_text: {}
+        },
+        "Entry Source": {
+          select: {
+            options: [
+              { name: "Handwritten", color: "blue" },
+              { name: "Digital", color: "green" },
+              { name: "Mixed", color: "yellow" }
+            ]
+          }
         },
         Status: {
           select: {
@@ -135,14 +169,25 @@ export async function setupJournalDatabase() {
   }
 }
 
+// Enhanced interface for journal entry data
+interface NotionJournalData {
+  title: string;
+  content: string;
+  summary?: string;
+  tags?: string[];
+  themes?: string[];
+  sentiment?: string;
+  sentimentScore?: number;
+  ocrConfidence?: number;
+  wordCount?: number;
+  reflectionQuestions?: string[];
+  entrySource?: 'Handwritten' | 'Digital' | 'Mixed';
+}
+
 // Create a journal entry in Notion
 export async function createNotionJournalEntry(
   databaseId: string,
-  title: string,
-  content: string,
-  tags: string[] = [],
-  sentiment?: string,
-  confidence?: number
+  data: NotionJournalData
 ) {
   if (!notion) {
     throw new Error("Notion not configured");
@@ -154,7 +199,7 @@ export async function createNotionJournalEntry(
         title: [
           {
             text: {
-              content: title
+              content: data.title
             }
           }
         ]
@@ -163,7 +208,7 @@ export async function createNotionJournalEntry(
         rich_text: [
           {
             text: {
-              content: content
+              content: data.content.substring(0, 2000) // Notion has limits
             }
           }
         ]
@@ -177,26 +222,77 @@ export async function createNotionJournalEntry(
         select: {
           name: "Processed"
         }
+      },
+      "Word Count": {
+        number: data.wordCount || data.content.split(' ').length
+      },
+      "Entry Source": {
+        select: {
+          name: data.entrySource || "Handwritten"
+        }
       }
     };
 
-    if (tags.length > 0) {
-      properties.Tags = {
-        multi_select: tags.map(tag => ({ name: tag }))
+    // Add summary if provided
+    if (data.summary) {
+      properties.Summary = {
+        rich_text: [
+          {
+            text: {
+              content: data.summary
+            }
+          }
+        ]
       };
     }
 
-    if (sentiment) {
+    // Add tags
+    if (data.tags && data.tags.length > 0) {
+      properties.Tags = {
+        multi_select: data.tags.map(tag => ({ name: tag }))
+      };
+    }
+
+    // Add themes
+    if (data.themes && data.themes.length > 0) {
+      properties.Themes = {
+        multi_select: data.themes.map(theme => ({ name: theme }))
+      };
+    }
+
+    // Add sentiment
+    if (data.sentiment) {
       properties.Sentiment = {
         select: {
-          name: sentiment
+          name: data.sentiment
         }
       };
     }
 
-    if (confidence !== undefined) {
-      properties.Confidence = {
-        number: confidence / 100 // Convert to decimal for percentage format
+    // Add sentiment score
+    if (data.sentimentScore !== undefined) {
+      properties["Sentiment Score"] = {
+        number: data.sentimentScore / 100
+      };
+    }
+
+    // Add OCR confidence
+    if (data.ocrConfidence !== undefined) {
+      properties["OCR Confidence"] = {
+        number: data.ocrConfidence / 100
+      };
+    }
+
+    // Add reflection questions
+    if (data.reflectionQuestions && data.reflectionQuestions.length > 0) {
+      properties["Reflection Questions"] = {
+        rich_text: [
+          {
+            text: {
+              content: data.reflectionQuestions.join('\n\n')
+            }
+          }
+        ]
       };
     }
 
@@ -214,15 +310,11 @@ export async function createNotionJournalEntry(
   }
 }
 
-// Sync journal entry to Notion
+// Sync journal entry to Notion with enhanced data
 export async function syncJournalToNotion(
   integrationSecret: string,
   pageUrl: string,
-  title: string,
-  content: string,
-  tags: string[] = [],
-  sentiment?: string,
-  confidence?: number
+  data: NotionJournalData
 ): Promise<string | null> {
   try {
     // Initialize Notion for this user
@@ -234,14 +326,7 @@ export async function syncJournalToNotion(
     const databaseId = await setupJournalDatabase();
     
     // Create the journal entry
-    const pageId = await createNotionJournalEntry(
-      databaseId,
-      title,
-      content,
-      tags,
-      sentiment,
-      confidence
-    );
+    const pageId = await createNotionJournalEntry(databaseId, data);
 
     return pageId;
   } catch (error) {

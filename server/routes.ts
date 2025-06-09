@@ -12,7 +12,7 @@ import {
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import { retryFailedEntries } from "./retry-processing";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { syncJournalToNotion } from "./notion";
+
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -347,18 +347,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const updatedEntry = await storage.getJournalEntry(entryId);
           if (updatedEntry && updatedEntry.transcribedText) {
             const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
-            const sentimentString = updatedEntry.sentimentAnalysis ? 
-              `${updatedEntry.sentimentAnalysis.overallSentiment} (${Math.round(updatedEntry.sentimentAnalysis.positiveScore * 100)}% positive)` : 
-              undefined;
+            const themeNames = updatedEntry.themes?.map(theme => theme.title) || [];
+            const reflectionQuestions = analysis.reflectionQuestions || [];
+            
+            const notionData = {
+              title: updatedEntry.title,
+              content: updatedEntry.transcribedText,
+              summary: analysis.themes.length > 0 ? analysis.themes[0].description : undefined,
+              tags: tagNames,
+              themes: themeNames,
+              sentiment: updatedEntry.sentimentAnalysis?.overallSentiment,
+              sentimentScore: updatedEntry.sentimentAnalysis ? 
+                Math.round(updatedEntry.sentimentAnalysis.positiveScore * 100) : undefined,
+              ocrConfidence: updatedEntry.ocrConfidence ?? undefined,
+              wordCount: updatedEntry.transcribedText.split(' ').length,
+              reflectionQuestions,
+              entrySource: 'Handwritten' as const
+            };
             
             await syncJournalToNotion(
               process.env.NOTION_INTEGRATION_SECRET,
               process.env.NOTION_PAGE_URL,
-              updatedEntry.title,
-              updatedEntry.transcribedText,
-              tagNames,
-              sentimentString,
-              updatedEntry.ocrConfidence ?? undefined
+              notionData
             );
             console.log(`Journal entry ${entryId} synced to Notion successfully`);
           }
