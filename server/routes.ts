@@ -65,6 +65,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded images statically for Notion cover images
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
   // Initialize Firebase Admin if configured
   if (process.env.VITE_FIREBASE_PROJECT_ID) {
     const { initializeFirebaseAdmin, authenticateFirebase } = await import("./firebaseAuth");
@@ -347,22 +350,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const updatedEntry = await storage.getJournalEntry(entryId);
           if (updatedEntry && updatedEntry.transcribedText) {
             const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
-            const themeNames = updatedEntry.themes?.map(theme => theme.title) || [];
-            const reflectionQuestions = analysis.reflectionQuestions || [];
+            
+            // Create a publicly accessible image URL
+            const baseUrl = process.env.REPL_URL || `http://localhost:5000`;
+            const publicImageUrl = `${baseUrl}${updatedEntry.originalImageUrl}`;
+            
+            // Create summary from AI analysis - ensure it's always a string
+            const summary: string = analysis.themes.length > 0 && analysis.themes[0].description
+              ? analysis.themes[0].description 
+              : `Journal entry with ${analysis.themes.length} themes identified. Sentiment: ${updatedEntry.sentimentAnalysis?.overallSentiment || 'Unknown'}`;
             
             const notionData = {
               title: updatedEntry.title,
               content: updatedEntry.transcribedText,
-              summary: analysis.themes.length > 0 ? analysis.themes[0].description : undefined,
+              summary,
+              imageUrl: publicImageUrl,
               tags: tagNames,
-              themes: themeNames,
               sentiment: updatedEntry.sentimentAnalysis?.overallSentiment,
-              sentimentScore: updatedEntry.sentimentAnalysis ? 
-                Math.round(updatedEntry.sentimentAnalysis.positiveScore * 100) : undefined,
-              ocrConfidence: updatedEntry.ocrConfidence ?? undefined,
-              wordCount: updatedEntry.transcribedText.split(' ').length,
-              reflectionQuestions,
-              entrySource: 'Handwritten' as const
+              date: new Date(updatedEntry.createdAt).toISOString().split('T')[0]
             };
             
             await syncJournalToNotion(

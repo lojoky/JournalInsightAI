@@ -84,11 +84,11 @@ export async function setupJournalDatabase() {
         Title: {
           title: {}
         },
-        Content: {
-          rich_text: {}
-        },
         Summary: {
           rich_text: {}
+        },
+        Date: {
+          date: {}
         },
         Tags: {
           multi_select: {
@@ -96,57 +96,20 @@ export async function setupJournalDatabase() {
               { name: "faith", color: "blue" },
               { name: "career", color: "green" },
               { name: "relationships", color: "pink" },
-              { name: "health", color: "orange" },
-              { name: "personal", color: "purple" },
               { name: "gratitude", color: "yellow" },
               { name: "reflection", color: "gray" },
-              { name: "decisions", color: "brown" },
-              { name: "mindfulness", color: "purple" },
+              { name: "personal", color: "purple" },
               { name: "family", color: "red" }
             ]
-          }
-        },
-        Themes: {
-          multi_select: {
-            options: []
           }
         },
         Sentiment: {
           select: {
             options: [
-              { name: "Very Positive", color: "green" },
               { name: "Positive", color: "green" },
               { name: "Neutral", color: "gray" },
               { name: "Concern", color: "yellow" },
               { name: "Negative", color: "red" }
-            ]
-          }
-        },
-        "Sentiment Score": {
-          number: {
-            format: "percent"
-          }
-        },
-        "OCR Confidence": {
-          number: {
-            format: "percent"
-          }
-        },
-        Date: {
-          date: {}
-        },
-        "Word Count": {
-          number: {}
-        },
-        "Reflection Questions": {
-          rich_text: {}
-        },
-        "Entry Source": {
-          select: {
-            options: [
-              { name: "Handwritten", color: "blue" },
-              { name: "Digital", color: "green" },
-              { name: "Mixed", color: "yellow" }
             ]
           }
         },
@@ -169,22 +132,18 @@ export async function setupJournalDatabase() {
   }
 }
 
-// Enhanced interface for journal entry data
+// Simplified interface for journal entry data
 interface NotionJournalData {
   title: string;
   content: string;
-  summary?: string;
+  summary: string;
+  imageUrl: string;
   tags?: string[];
-  themes?: string[];
   sentiment?: string;
-  sentimentScore?: number;
-  ocrConfidence?: number;
-  wordCount?: number;
-  reflectionQuestions?: string[];
-  entrySource?: 'Handwritten' | 'Digital' | 'Mixed';
+  date?: string;
 }
 
-// Create a journal entry in Notion
+// Create a journal entry in Notion with image cover and content
 export async function createNotionJournalEntry(
   databaseId: string,
   data: NotionJournalData
@@ -194,6 +153,7 @@ export async function createNotionJournalEntry(
   }
 
   try {
+    // Create database properties
     const properties: any = {
       Title: {
         title: [
@@ -204,38 +164,7 @@ export async function createNotionJournalEntry(
           }
         ]
       },
-      Content: {
-        rich_text: [
-          {
-            text: {
-              content: data.content.substring(0, 2000) // Notion has limits
-            }
-          }
-        ]
-      },
-      Date: {
-        date: {
-          start: new Date().toISOString().split('T')[0]
-        }
-      },
-      Status: {
-        select: {
-          name: "Processed"
-        }
-      },
-      "Word Count": {
-        number: data.wordCount || data.content.split(' ').length
-      },
-      "Entry Source": {
-        select: {
-          name: data.entrySource || "Handwritten"
-        }
-      }
-    };
-
-    // Add summary if provided
-    if (data.summary) {
-      properties.Summary = {
+      Summary: {
         rich_text: [
           {
             text: {
@@ -243,24 +172,27 @@ export async function createNotionJournalEntry(
             }
           }
         ]
-      };
-    }
+      },
+      Date: {
+        date: {
+          start: data.date || new Date().toISOString().split('T')[0]
+        }
+      },
+      Status: {
+        select: {
+          name: "Processed"
+        }
+      }
+    };
 
-    // Add tags
+    // Add tags if provided
     if (data.tags && data.tags.length > 0) {
       properties.Tags = {
         multi_select: data.tags.map(tag => ({ name: tag }))
       };
     }
 
-    // Add themes
-    if (data.themes && data.themes.length > 0) {
-      properties.Themes = {
-        multi_select: data.themes.map(theme => ({ name: theme }))
-      };
-    }
-
-    // Add sentiment
+    // Add sentiment if provided
     if (data.sentiment) {
       properties.Sentiment = {
         select: {
@@ -269,39 +201,41 @@ export async function createNotionJournalEntry(
       };
     }
 
-    // Add sentiment score
-    if (data.sentimentScore !== undefined) {
-      properties["Sentiment Score"] = {
-        number: data.sentimentScore / 100
-      };
-    }
-
-    // Add OCR confidence
-    if (data.ocrConfidence !== undefined) {
-      properties["OCR Confidence"] = {
-        number: data.ocrConfidence / 100
-      };
-    }
-
-    // Add reflection questions
-    if (data.reflectionQuestions && data.reflectionQuestions.length > 0) {
-      properties["Reflection Questions"] = {
-        rich_text: [
-          {
-            text: {
-              content: data.reflectionQuestions.join('\n\n')
-            }
-          }
-        ]
-      };
-    }
-
-    const page = await notion.pages.create({
+    // Create the page with cover image and content
+    const pageData: any = {
       parent: {
         database_id: databaseId
       },
-      properties
-    });
+      properties,
+      cover: {
+        type: "external",
+        external: {
+          url: data.imageUrl
+        }
+      }
+    };
+
+    // Add the transcribed text as page content (children blocks)
+    if (data.content) {
+      pageData.children = [
+        {
+          object: "block",
+          type: "paragraph",
+          paragraph: {
+            rich_text: [
+              {
+                type: "text",
+                text: {
+                  content: data.content
+                }
+              }
+            ]
+          }
+        }
+      ];
+    }
+
+    const page = await notion.pages.create(pageData);
 
     return page.id;
   } catch (error) {
