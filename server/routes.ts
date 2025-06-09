@@ -12,6 +12,7 @@ import {
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import { retryFailedEntries } from "./retry-processing";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { syncJournalToNotion } from "./notion";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -417,8 +418,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user Notion settings
+  app.post("/api/user/notion-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { notionIntegrationSecret, notionPageUrl } = req.body;
+      
+      // Update user with Notion credentials
+      await storage.upsertUser({
+        id: userId,
+        notionIntegrationSecret,
+        notionPageUrl,
+      });
+      
+      res.json({ message: "Notion settings updated successfully" });
+    } catch (error) {
+      console.error("Update Notion settings error:", error);
+      res.status(500).json({ message: "Failed to update Notion settings" });
+    }
+  });
+
   // Retry failed entries
-  app.post("/api/retry-failed-entries", async (req, res) => {
+  app.post("/api/retry-failed-entries", isAuthenticated, async (req, res) => {
     try {
       console.log("Starting retry process for failed entries...");
       const result = await retryFailedEntries();
