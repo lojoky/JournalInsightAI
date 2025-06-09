@@ -333,6 +333,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: "completed"
       });
 
+      // Sync to Notion if configured
+      try {
+        const { syncJournalToNotion, isNotionConfigured } = await import("./notion");
+        if (isNotionConfigured() && process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL) {
+          const updatedEntry = await storage.getJournalEntry(entryId);
+          if (updatedEntry && updatedEntry.transcribedText) {
+            const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
+            const sentimentString = updatedEntry.sentimentAnalysis ? 
+              `${updatedEntry.sentimentAnalysis.overallSentiment} (${Math.round(updatedEntry.sentimentAnalysis.positiveScore * 100)}% positive)` : 
+              undefined;
+            
+            await syncJournalToNotion(
+              process.env.NOTION_INTEGRATION_SECRET,
+              process.env.NOTION_PAGE_URL,
+              updatedEntry.title,
+              updatedEntry.transcribedText,
+              tagNames,
+              sentimentString,
+              updatedEntry.ocrConfidence
+            );
+            console.log(`Journal entry ${entryId} synced to Notion successfully`);
+          }
+        }
+      } catch (notionError) {
+        console.error("Failed to sync to Notion:", notionError);
+        // Don't fail the main request if Notion sync fails
+      }
+
       res.json({
         themes,
         sentiment: sentimentData,

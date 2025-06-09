@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Brain, Lock, Users } from "lucide-react";
+import { signInWithGoogle } from "@/lib/firebase";
 
 export default function Landing() {
   return (
@@ -31,15 +32,25 @@ export default function Landing() {
               </div>
             </div>
             
-            <Button 
-              className="w-full bg-[#6366F1] hover:bg-[#4F46E5]"
-              onClick={() => window.location.href = '/api/login'}
-            >
-              Continue with Replit
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                className="w-full bg-[#6366F1] hover:bg-[#4F46E5]"
+                onClick={signInWithGoogle}
+              >
+                Continue with Google
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => window.location.href = '/api/login'}
+              >
+                Continue with Replit
+              </Button>
+            </div>
             
             <p className="text-xs text-gray-500 text-center mt-4">
-              Secure authentication powered by Replit
+              Choose your preferred authentication method
             </p>
           </CardContent>
         </Card>
