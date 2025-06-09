@@ -127,8 +127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No image file provided" });
       }
 
-      if (!defaultUser) {
-        return res.status(500).json({ message: "Default user not found" });
+      const userId = (req as any).user.claims.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
       }
 
       const { title = "Untitled Entry" } = req.body;
@@ -172,7 +173,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create journal entry with pending status
-      const userId = (req as any).user.claims.sub;
       const entry = await storage.createJournalEntry({
         userId,
         title,
@@ -341,22 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get journal entries
-  app.get("/api/journal-entries", async (req, res) => {
-    try {
-      if (!defaultUser) {
-        return res.status(500).json({ message: "Default user not found" });
-      }
 
-      const limit = parseInt(req.query.limit as string) || 10;
-      const entries = await storage.getJournalEntriesByUser(defaultUser.id, limit);
-      
-      res.json(entries);
-    } catch (error) {
-      console.error("Get entries error:", error);
-      res.status(500).json({ message: "Failed to fetch journal entries" });
-    }
-  });
 
   // Get specific journal entry
   app.get("/api/journal-entries/:id", async (req, res) => {
