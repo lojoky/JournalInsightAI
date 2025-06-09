@@ -65,6 +65,13 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Firebase Admin if configured
+  if (process.env.VITE_FIREBASE_PROJECT_ID) {
+    const { initializeFirebaseAdmin, authenticateFirebase } = await import("./firebaseAuth");
+    initializeFirebaseAdmin();
+    app.use(authenticateFirebase);
+  }
+
   // Initialize Notion if configured
   if (process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL) {
     const { initializeNotion } = await import("./notion");
@@ -351,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               updatedEntry.transcribedText,
               tagNames,
               sentimentString,
-              updatedEntry.ocrConfidence
+              updatedEntry.ocrConfidence ?? undefined
             );
             console.log(`Journal entry ${entryId} synced to Notion successfully`);
           }

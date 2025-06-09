@@ -1,8 +1,9 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { Request, Response, NextFunction } from 'express';
 
 // Initialize Firebase Admin SDK
-let firebaseAdmin: admin.app.App | null = null;
+let firebaseAdmin: any = null;
 
 export function initializeFirebaseAdmin() {
   if (!process.env.VITE_FIREBASE_PROJECT_ID) {
@@ -11,9 +12,14 @@ export function initializeFirebaseAdmin() {
   }
 
   try {
-    firebaseAdmin = admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-    });
+    // Check if Firebase Admin is already initialized
+    if (getApps().length === 0) {
+      firebaseAdmin = initializeApp({
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      });
+    } else {
+      firebaseAdmin = getApps()[0];
+    }
     console.log('Firebase Admin initialized successfully');
     return true;
   } catch (error) {
@@ -28,7 +34,8 @@ export async function verifyFirebaseToken(idToken: string) {
   }
 
   try {
-    const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
+    const auth = getAuth(firebaseAdmin);
+    const decodedToken = await auth.verifyIdToken(idToken);
     return decodedToken;
   } catch (error) {
     console.error('Firebase token verification failed:', error);
