@@ -115,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload journal entry image
-  app.post("/api/journal-entries/upload", isAuthenticated, upload.single('image'), async (req, res) => {
+  app.post("/api/journal-entries/upload", isAuthenticated, upload.single('image'), async (req: any, res) => {
     try {
       console.log("Upload request received:");
       console.log("- Files:", req.file);
@@ -127,8 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No image file provided" });
       }
 
-      const userId = (req as any).user.claims.sub;
-      if (!userId) {
+      const authenticatedUserId = req.user.claims.sub;
+      if (!authenticatedUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create journal entry with pending status
       const entry = await storage.createJournalEntry({
-        userId,
+        userId: authenticatedUserId,
         title,
         originalImageUrl: `/uploads/${req.file.filename}`,
         processingStatus: "pending"
