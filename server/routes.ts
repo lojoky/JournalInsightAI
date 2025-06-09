@@ -295,8 +295,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const savedTags = await Promise.all(tagPromises);
 
-      // Update entry status to completed
+      // Update entry status to completed and set the AI-generated title
       await storage.updateJournalEntry(entryId, {
+        title: analysis.title,
         processingStatus: "completed"
       });
 

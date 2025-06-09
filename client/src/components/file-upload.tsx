@@ -6,10 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 
 interface FileUploadProps {
   onFileUpload: (file: File, title?: string) => Promise<void>;
+  onBulkUpload: (files: File[]) => Promise<void>;
   isProcessing: boolean;
 }
 
-export default function FileUpload({ onFileUpload, isProcessing }: FileUploadProps) {
+export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }: FileUploadProps) {
   const { toast } = useToast();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -19,24 +20,34 @@ export default function FileUpload({ onFileUpload, isProcessing }: FileUploadPro
       return;
     }
 
-    const file = acceptedFiles[0];
-    console.log('Processing file:', file.name, file.type, file.size);
-    
     try {
-      await onFileUpload(file, file.name.replace(/\.[^/.]+$/, ""));
-      toast({
-        title: "Upload successful",
-        description: "Your journal image has been uploaded and processing has started.",
-      });
+      if (acceptedFiles.length === 1) {
+        // Single file upload
+        const file = acceptedFiles[0];
+        console.log('Processing single file:', file.name, file.type, file.size);
+        await onFileUpload(file, file.name.replace(/\.[^/.]+$/, ""));
+        toast({
+          title: "Upload successful",
+          description: "Your journal image has been uploaded and processing has started.",
+        });
+      } else {
+        // Bulk upload
+        console.log('Processing bulk upload:', acceptedFiles.length, 'files');
+        await onBulkUpload(acceptedFiles);
+        toast({
+          title: "Bulk upload successful",
+          description: `${acceptedFiles.length} images uploaded and will be processed sequentially.`,
+        });
+      }
     } catch (error) {
       console.error('File upload error:', error);
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "There was an error uploading your file. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error uploading your files. Please try again.",
         variant: "destructive",
       });
     }
-  }, [onFileUpload, toast]);
+  }, [onFileUpload, onBulkUpload, toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -45,7 +56,7 @@ export default function FileUpload({ onFileUpload, isProcessing }: FileUploadPro
     },
     maxSize: 10 * 1024 * 1024, // 10MB
     disabled: isProcessing,
-    multiple: false
+    multiple: true
   });
 
   return (

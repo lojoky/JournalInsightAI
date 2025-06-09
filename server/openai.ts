@@ -14,6 +14,7 @@ interface ThemeAnalysis {
 }
 
 interface JournalAnalysisResult {
+  title: string;
   themes: ThemeAnalysis[];
   tags: string[];
   reflectionQuestions: string[];
@@ -31,16 +32,18 @@ export async function analyzeJournalEntry(transcribedText: string): Promise<Jour
   try {
     const prompt = `
 Please analyze the following journal entry and provide insights in JSON format. Focus on identifying:
-1. Key themes and their descriptions with confidence scores (0-100)
-2. Relevant tags for categorization (faith, career, relationships, gratitude, reflection, personal-growth, family, decisions, mindfulness, etc.)
-3. Thoughtful reflection questions based on the content
-4. Overall emotional tone
+1. A meaningful, descriptive title that captures the essence of the entry (2-6 words)
+2. Key themes and their descriptions with confidence scores (0-100)
+3. Relevant tags for categorization (faith, career, relationships, gratitude, reflection, personal-growth, family, decisions, mindfulness, etc.)
+4. Thoughtful reflection questions based on the content
+5. Overall emotional tone
 
 Journal Entry:
 "${transcribedText}"
 
 Please respond with JSON in this exact format:
 {
+  "title": "Meaningful Entry Title",
   "themes": [
     {
       "title": "Theme Title",
@@ -79,6 +82,7 @@ Please respond with JSON in this exact format:
 
     // Validate and sanitize the result
     return {
+      title: String(result.title || "Journal Entry"),
       themes: Array.isArray(result.themes) ? result.themes.map((theme: any) => ({
         title: String(theme.title || "Unnamed Theme"),
         description: String(theme.description || ""),
