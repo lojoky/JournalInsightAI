@@ -55,8 +55,9 @@ export default function RecentEntries() {
     );
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
       year: 'numeric'
@@ -124,7 +125,7 @@ export default function RecentEntries() {
                           {entry.title}
                         </h4>
                         <p className="text-xs text-gray-500">
-                          {formatDate(entry.createdAt.toString())}
+                          {formatDate(entry.createdAt)}
                         </p>
                       </div>
                     </div>

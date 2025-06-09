@@ -108,6 +108,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getJournalEntriesByUser(userId: number, limit = 10): Promise<JournalEntryWithDetails[]> {
+    console.log(`Fetching journal entries for user ${userId} with limit ${limit}`);
+    
     const entries = await db
       .select()
       .from(journalEntries)
@@ -115,23 +117,36 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(journalEntries.createdAt))
       .limit(limit);
 
+    console.log(`Found ${entries.length} entries for user ${userId}`);
+
     const entriesWithDetails = await Promise.all(
       entries.map(async (entry) => {
-        const [entryThemes, entryTagsData, sentiment] = await Promise.all([
-          this.getThemesByEntry(entry.id),
-          this.getTagsByEntry(entry.id),
-          this.getSentimentByEntry(entry.id)
-        ]);
+        try {
+          const [entryThemes, entryTagsData, sentiment] = await Promise.all([
+            this.getThemesByEntry(entry.id),
+            this.getTagsByEntry(entry.id),
+            this.getSentimentByEntry(entry.id)
+          ]);
 
-        return {
-          ...entry,
-          themes: entryThemes,
-          tags: entryTagsData,
-          sentimentAnalysis: sentiment
-        };
+          return {
+            ...entry,
+            themes: entryThemes,
+            tags: entryTagsData,
+            sentimentAnalysis: sentiment
+          };
+        } catch (error) {
+          console.error(`Error processing entry ${entry.id}:`, error);
+          return {
+            ...entry,
+            themes: [],
+            tags: [],
+            sentimentAnalysis: undefined
+          };
+        }
       })
     );
 
+    console.log(`Returning ${entriesWithDetails.length} entries with details`);
     return entriesWithDetails;
   }
 
