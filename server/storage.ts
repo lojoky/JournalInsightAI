@@ -23,10 +23,9 @@ import { db } from "./db";
 import { eq, desc, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
-  // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // User methods for Replit Auth
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
 
   // Journal entry methods
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;

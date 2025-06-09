@@ -120,15 +120,13 @@ export const sentimentAnalysisRelations = relations(sentimentAnalysis, ({ one })
   }),
 }));
 
+// Type for upsert operations (Replit Auth)
+export type UpsertUser = typeof users.$inferInsert;
+
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  id: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  profileImageUrl: true,
-  notionIntegrationSecret: true,
-  notionPageUrl: true,
+export const insertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertJournalEntrySchema = createInsertSchema(journalEntries).pick({
