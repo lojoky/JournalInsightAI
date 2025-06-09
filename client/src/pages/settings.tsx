@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
+import RetryFailedEntries from "@/components/retry-failed-entries";
 
 export default function Settings() {
   return (
@@ -27,6 +28,9 @@ export default function Settings() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Processing Status */}
+        <RetryFailedEntries />
+
         {/* General Settings */}
         <Card>
           <CardHeader>

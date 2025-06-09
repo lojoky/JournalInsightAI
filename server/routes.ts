@@ -401,6 +401,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Retry failed entries
+  app.post("/api/retry-failed-entries", async (req, res) => {
+    try {
+      console.log("Starting retry process for failed entries...");
+      const result = await retryFailedEntries();
+      
+      res.json({
+        message: "Retry process completed",
+        ...result
+      });
+    } catch (error) {
+      console.error("Retry failed entries error:", error);
+      res.status(500).json({ message: "Failed to retry entries" });
+    }
+  });
+
+  // Get failed entries count
+  app.get("/api/failed-entries-count", async (req, res) => {
+    try {
+      const failedEntries = await storage.getFailedEntries();
+      res.json({ count: failedEntries.length });
+    } catch (error) {
+      console.error("Get failed entries count error:", error);
+      res.status(500).json({ message: "Failed to get failed entries count" });
+    }
+  });
+
   // Serve uploaded files
   const expressStatic = express.static;
   app.use('/uploads', expressStatic(path.join(process.cwd(), 'uploads')));
