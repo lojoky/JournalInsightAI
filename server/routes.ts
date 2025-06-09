@@ -11,6 +11,7 @@ import {
 } from "@shared/schema";
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import { retryFailedEntries } from "./retry-processing";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -63,19 +64,8 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Create default user for demo purposes
-  let defaultUser: any = null;
-  try {
-    defaultUser = await storage.getUserByUsername("demo");
-    if (!defaultUser) {
-      defaultUser = await storage.createUser({
-        username: "demo",
-        password: "demo"
-      });
-    }
-  } catch (error) {
-    console.error("Error creating default user:", error);
-  }
+  // Setup authentication
+  await setupAuth(app);
 
   // Create default tags if they don't exist
   const defaultTags = [
@@ -156,8 +146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create journal entry with pending status
+      const userId = (req as any).user.claims.sub;
       const entry = await storage.createJournalEntry({
-        userId: defaultUser.id,
+        userId,
         title,
         originalImageUrl: `/uploads/${req.file.filename}`,
         processingStatus: "pending"

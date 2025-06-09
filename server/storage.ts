@@ -6,7 +6,7 @@ import {
   entryTags, 
   sentimentAnalysis,
   type User, 
-  type InsertUser,
+  type UpsertUser,
   type JournalEntry,
   type InsertJournalEntry,
   type Theme,
@@ -31,7 +31,7 @@ export interface IStorage {
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
   updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
   getJournalEntry(id: number): Promise<JournalEntryWithDetails | undefined>;
-  getJournalEntriesByUser(userId: number, limit?: number): Promise<JournalEntryWithDetails[]>;
+  getJournalEntriesByUser(userId: string, limit?: number): Promise<JournalEntryWithDetails[]>;
 
   // Theme methods
   createTheme(theme: InsertTheme): Promise<Theme>;
@@ -56,20 +56,22 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values(insertUser)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
     return user;
   }
@@ -109,7 +111,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getJournalEntriesByUser(userId: number, limit = 10): Promise<JournalEntryWithDetails[]> {
+  async getJournalEntriesByUser(userId: string, limit = 10): Promise<JournalEntryWithDetails[]> {
     console.log(`Fetching journal entries for user ${userId} with limit ${limit}`);
     
     const entries = await db
