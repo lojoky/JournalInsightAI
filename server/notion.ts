@@ -42,6 +42,8 @@ export async function setupJournalDatabase() {
       block_id: NOTION_PAGE_ID,
     });
 
+    console.log(`Found ${response.results.length} blocks in Notion page`);
+
     // Look for existing journal database
     for (const block of response.results) {
       if (block.object === 'block' && (block as any).type === "child_database") {
@@ -50,16 +52,11 @@ export async function setupJournalDatabase() {
             database_id: block.id,
           });
 
-          // Check if this is our journal database
-          if (databaseInfo.object === 'database' && (databaseInfo as any).title) {
-            const title = (databaseInfo as any).title;
-            if (Array.isArray(title) && title.length > 0) {
-              const dbTitle = title[0]?.plain_text?.toLowerCase() || "";
-              if (dbTitle.includes("journal") || dbTitle.includes("entries")) {
-                return databaseInfo.id;
-              }
-            }
-          }
+          console.log(`Found database: ${JSON.stringify((databaseInfo as any).title)}`);
+
+          // Return the first database we find for now
+          console.log(`Using existing database: ${databaseInfo.id}`);
+          return databaseInfo.id;
         } catch (error) {
           console.error(`Error checking database ${block.id}:`, error);
         }
@@ -153,9 +150,19 @@ export async function createNotionJournalEntry(
   }
 
   try {
-    // Create database properties
-    const properties: any = {
-      Title: {
+    // First, get the database schema to understand what properties exist
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    const existingProperties = (database as any).properties || {};
+    
+    console.log('Available database properties:', Object.keys(existingProperties));
+
+    // Create database properties - only use existing properties
+    const properties: any = {};
+    
+    // Always set Title (required for all databases)
+    if (existingProperties.Title || existingProperties.Name) {
+      const titleProp = existingProperties.Title ? 'Title' : 'Name';
+      properties[titleProp] = {
         title: [
           {
             text: {
@@ -163,43 +170,41 @@ export async function createNotionJournalEntry(
             }
           }
         ]
-      },
-      Summary: {
-        rich_text: [
-          {
-            text: {
-              content: data.summary
-            }
-          }
-        ]
-      },
-      Date: {
-        date: {
-          start: data.date || new Date().toISOString().split('T')[0]
-        }
-      },
-      Status: {
-        select: {
-          name: "Processed"
-        }
-      }
-    };
+      };
+    }
 
-    // Add tags if provided
-    if (data.tags && data.tags.length > 0) {
+    // Add other properties only if they exist in the database
+    if (existingProperties.Tags && data.tags && data.tags.length > 0) {
       properties.Tags = {
         multi_select: data.tags.map(tag => ({ name: tag }))
       };
     }
 
-    // Add sentiment if provided
-    if (data.sentiment) {
+    if (existingProperties.Sentiment && data.sentiment) {
       properties.Sentiment = {
         select: {
           name: data.sentiment
         }
       };
     }
+
+    if (existingProperties.Date && data.date) {
+      properties.Date = {
+        date: {
+          start: data.date
+        }
+      };
+    }
+
+    if (existingProperties.Status) {
+      properties.Status = {
+        select: {
+          name: "Processed"
+        }
+      };
+    }
+
+    console.log('Creating page with properties:', Object.keys(properties));
 
     // Create the page with cover image and content
     const pageData: any = {
@@ -215,10 +220,65 @@ export async function createNotionJournalEntry(
       }
     };
 
-    // Add the transcribed text as page content (children blocks)
+    // Add the summary and full transcribed text as page content
+    const children = [];
+    
+    // Add summary as a heading and paragraph
+    if (data.summary) {
+      children.push({
+        object: "block",
+        type: "heading_2",
+        heading_2: {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: "Summary"
+              }
+            }
+          ]
+        }
+      });
+      
+      children.push({
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: data.summary
+              }
+            }
+          ]
+        }
+      });
+    }
+    
+    // Add full transcribed text
     if (data.content) {
-      pageData.children = [
-        {
+      children.push({
+        object: "block",
+        type: "heading_2",
+        heading_2: {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: "Full Text"
+              }
+            }
+          ]
+        }
+      });
+      
+      // Split long content into chunks for Notion's block limits
+      const maxBlockLength = 2000;
+      const contentChunks = data.content.match(new RegExp(`.{1,${maxBlockLength}}`, 'g')) || [data.content];
+      
+      contentChunks.forEach(chunk => {
+        children.push({
           object: "block",
           type: "paragraph",
           paragraph: {
@@ -226,13 +286,17 @@ export async function createNotionJournalEntry(
               {
                 type: "text",
                 text: {
-                  content: data.content
+                  content: chunk
                 }
               }
             ]
           }
-        }
-      ];
+        });
+      });
+    }
+    
+    if (children.length > 0) {
+      pageData.children = children;
     }
 
     const page = await notion.pages.create(pageData);

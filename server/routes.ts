@@ -352,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
             
             // Create a publicly accessible image URL
-            const baseUrl = process.env.REPL_URL || `http://localhost:5000`;
+            const baseUrl = process.env.REPL_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` || `http://localhost:5000`;
             const publicImageUrl = `${baseUrl}${updatedEntry.originalImageUrl}`;
             
             // Create summary from AI analysis - ensure it's always a string
