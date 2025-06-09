@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut } from "firebase/auth";
+import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -15,6 +15,11 @@ export const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 export function signInWithGoogle() {
+  // Use popup method for better compatibility with deployed apps
+  if (window.location.hostname.includes('replit.app') || window.location.hostname === 'localhost') {
+    return signInWithPopup(auth, provider);
+  }
+  // Fallback to redirect for other environments
   return signInWithRedirect(auth, provider);
 }
 

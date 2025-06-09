@@ -343,12 +343,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: "completed"
       });
 
-      // Sync to Notion if configured
+      // Sync to Notion if user has configured it
       try {
-        const { syncJournalToNotion, isNotionConfigured } = await import("./notion");
-        if (isNotionConfigured() && process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL) {
-          const updatedEntry = await storage.getJournalEntry(entryId);
-          if (updatedEntry && updatedEntry.transcribedText) {
+        const updatedEntry = await storage.getJournalEntry(entryId);
+        if (updatedEntry && updatedEntry.transcribedText) {
+          const user = await storage.getUser(updatedEntry.userId);
+          
+          if (user && user.notionIntegrationSecret && user.notionPageUrl) {
+            const { syncJournalToNotion } = await import("./notion");
             const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
             
             // Create a publicly accessible image URL
@@ -371,15 +373,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
             
             await syncJournalToNotion(
-              process.env.NOTION_INTEGRATION_SECRET,
-              process.env.NOTION_PAGE_URL,
+              user.notionIntegrationSecret,
+              user.notionPageUrl,
               notionData
             );
-            console.log(`Journal entry ${entryId} synced to Notion successfully`);
+            console.log(`Journal entry ${entryId} synced to user's personal Notion successfully`);
           }
         }
       } catch (notionError) {
-        console.error("Failed to sync to Notion:", notionError);
+        console.error("Failed to sync to user's Notion:", notionError);
         // Don't fail the main request if Notion sync fails
       }
 
@@ -520,8 +522,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update user Notion settings
   app.post("/api/user/notion-settings", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
       const { notionIntegrationSecret, notionPageUrl } = req.body;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
       // Update user with Notion credentials
       await storage.upsertUser({
