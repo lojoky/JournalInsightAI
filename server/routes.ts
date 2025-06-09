@@ -429,7 +429,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const entryId = parseInt(req.params.id);
       const { transcribedText } = req.body;
-      const userId = (req as any).user.id;
+      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
+      console.log('Update transcription - User object:', JSON.stringify((req as any).user, null, 2));
+      console.log('Update transcription - Extracted userId:', userId);
 
       if (!transcribedText || typeof transcribedText !== 'string') {
         return res.status(400).json({ message: "Valid transcribed text is required" });
@@ -437,6 +439,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify the entry belongs to the user
       const entry = await storage.getJournalEntry(entryId);
+      console.log('Entry found:', entry ? `ID: ${entry.id}, userId: ${entry.userId}` : 'Not found');
+      console.log('Comparing userId:', userId, 'with entry.userId:', entry?.userId);
+      
       if (!entry || entry.userId !== userId) {
         return res.status(404).json({ message: "Entry not found or access denied" });
       }
@@ -456,10 +461,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/journal-entries/:id", isAuthenticated, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
-      const userId = (req as any).user.id;
+      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
+      console.log('Delete entry - User object:', JSON.stringify((req as any).user, null, 2));
+      console.log('Delete entry - Extracted userId:', userId);
 
       // Verify the entry belongs to the user
       const entry = await storage.getJournalEntry(entryId);
+      console.log('Entry found for delete:', entry ? `ID: ${entry.id}, userId: ${entry.userId}` : 'Not found');
+      console.log('Comparing userId:', userId, 'with entry.userId:', entry?.userId);
+      
       if (!entry || entry.userId !== userId) {
         return res.status(404).json({ message: "Entry not found or access denied" });
       }
