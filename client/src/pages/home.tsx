@@ -13,7 +13,9 @@ export default function Home() {
   const {
     currentEntry,
     isProcessing,
+    bulkProgress,
     uploadFile,
+    uploadBulkFiles,
     processTranscription,
     analyzeEntry,
     addCustomTag
@@ -57,7 +59,32 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Upload and Processing */}
           <div className="space-y-6">
-            <FileUpload onFileUpload={uploadFile} isProcessing={isProcessing} />
+            <FileUpload 
+              onFileUpload={uploadFile} 
+              onBulkUpload={uploadBulkFiles}
+              isProcessing={isProcessing} 
+            />
+
+            {/* Bulk Processing Progress */}
+            {bulkProgress && (
+              <Card className="journal-card">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-semibold text-[#111827] mb-4">Bulk Processing Progress</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Processing files...</span>
+                      <span>{bulkProgress.current} / {bulkProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-[#6366F1] h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             
             <ProcessingStatus 
               entry={currentEntry}

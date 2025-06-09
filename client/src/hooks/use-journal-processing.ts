@@ -22,6 +22,7 @@ interface AnalysisResponse {
 export function useJournalProcessing() {
   const [currentEntry, setCurrentEntry] = useState<JournalEntryWithDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -218,6 +219,59 @@ export function useJournalProcessing() {
     }
   }, [currentEntry, analysisMutation]);
 
+  // Bulk upload function
+  const uploadBulkFiles = useCallback(async (files: File[]) => {
+    setIsProcessing(true);
+    setBulkProgress({ current: 0, total: files.length });
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setBulkProgress({ current: i + 1, total: files.length });
+        
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        
+        try {
+          // Upload file
+          const uploadResult = await uploadMutation.mutateAsync({ file, title });
+          
+          // Extract text using OpenAI Vision
+          await aiTextExtractionMutation.mutateAsync(uploadResult.id);
+          
+          // Analyze with AI
+          await analysisMutation.mutateAsync(uploadResult.id);
+          
+          console.log(`Processed file ${i + 1}/${files.length}: ${file.name}`);
+        } catch (error) {
+          console.error(`Failed to process file ${file.name}:`, error);
+          toast({
+            title: `Failed to process ${file.name}`,
+            description: "Continuing with remaining files...",
+            variant: "destructive",
+          });
+        }
+      }
+
+      // Invalidate cache to refresh the entries list
+      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+      
+      toast({
+        title: "Bulk processing complete",
+        description: `Successfully processed ${files.length} journal entries.`,
+      });
+    } catch (error) {
+      console.error('Bulk processing error:', error);
+      toast({
+        title: "Bulk processing failed",
+        description: "There was an error processing your journal entries.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      setBulkProgress(null);
+    }
+  }, [uploadMutation, aiTextExtractionMutation, analysisMutation, queryClient, toast]);
+
   // Function to add custom tag
   const addCustomTag = useCallback(async (entryId: number, tagName: string, category?: string) => {
     try {
@@ -231,7 +285,9 @@ export function useJournalProcessing() {
   return {
     currentEntry,
     isProcessing,
+    bulkProgress,
     uploadFile,
+    uploadBulkFiles,
     processTranscription,
     analyzeEntry,
     addCustomTag,

@@ -78,12 +78,15 @@ export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }:
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold text-[#111827] mb-2">Upload Journal Image</h3>
+              <h3 className="text-lg font-semibold text-[#111827] mb-2">Upload Journal Images</h3>
               <p className="text-gray-600 mb-4">
                 {isDragActive 
-                  ? "Drop your journal image here" 
-                  : "Drag and drop your journal image here, or click to browse"
+                  ? "Drop your journal images here" 
+                  : "Drag and drop your journal images here, or click to browse"
                 }
+              </p>
+              <p className="text-sm text-gray-500">
+                Select multiple images for bulk processing or single images for immediate analysis
               </p>
             </div>
             
@@ -94,7 +97,7 @@ export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }:
                 disabled={isProcessing}
               >
                 <FileImage className="w-4 h-4 mr-2 inline" />
-                {isProcessing ? "Processing..." : "Choose File"}
+                {isProcessing ? "Processing..." : "Choose Files"}
               </button>
             )}
             
