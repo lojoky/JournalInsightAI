@@ -32,6 +32,7 @@ export interface IStorage {
   updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
   getJournalEntry(id: number): Promise<JournalEntryWithDetails | undefined>;
   getJournalEntriesByUser(userId: string, limit?: number): Promise<JournalEntryWithDetails[]>;
+  deleteJournalEntry(id: number): Promise<void>;
 
   // Theme methods
   createTheme(theme: InsertTheme): Promise<Theme>;
@@ -259,6 +260,18 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(journalEntries.createdAt));
     
     return entries;
+  }
+
+  async deleteJournalEntry(id: number): Promise<void> {
+    await db.transaction(async (tx) => {
+      // Delete related data first due to foreign key constraints
+      await tx.delete(entryTags).where(eq(entryTags.entryId, id));
+      await tx.delete(themes).where(eq(themes.entryId, id));
+      await tx.delete(sentimentAnalysis).where(eq(sentimentAnalysis.entryId, id));
+      
+      // Finally delete the journal entry
+      await tx.delete(journalEntries).where(eq(journalEntries.id, id));
+    });
   }
 }
 

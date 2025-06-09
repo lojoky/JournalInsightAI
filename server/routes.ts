@@ -424,6 +424,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update transcription for journal entry
+  app.patch("/api/journal-entries/:id/transcription", isAuthenticated, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const { transcribedText } = req.body;
+      const userId = (req as any).user.id;
+
+      if (!transcribedText || typeof transcribedText !== 'string') {
+        return res.status(400).json({ message: "Valid transcribed text is required" });
+      }
+
+      // Verify the entry belongs to the user
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry || entry.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found or access denied" });
+      }
+
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText
+      });
+
+      res.json(updatedEntry);
+    } catch (error) {
+      console.error("Update transcription error:", error);
+      res.status(500).json({ message: "Failed to update transcription" });
+    }
+  });
+
+  // Delete journal entry
+  app.delete("/api/journal-entries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+
+      // Verify the entry belongs to the user
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry || entry.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found or access denied" });
+      }
+
+      // Delete the entry
+      await storage.deleteJournalEntry(entryId);
+
+      res.json({ message: "Entry deleted successfully" });
+    } catch (error) {
+      console.error("Delete entry error:", error);
+      res.status(500).json({ message: "Failed to delete entry" });
+    }
+  });
+
   // Add custom tag to entry
   app.post("/api/journal-entries/:id/tags", async (req, res) => {
     try {
