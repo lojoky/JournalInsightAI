@@ -67,6 +67,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   await setupAuth(app);
 
+  // Authentication routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // Create default tags if they don't exist
   const defaultTags = [
     { name: "faith", category: "spiritual", color: "#6366F1" },
@@ -88,8 +100,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Get all journal entries for authenticated user
+  app.get("/api/journal-entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const entries = await storage.getJournalEntriesByUser(userId, limit);
+      res.json(entries);
+    } catch (error) {
+      console.error("Get journal entries error:", error);
+      res.status(500).json({ message: "Failed to fetch journal entries" });
+    }
+  });
+
   // Upload journal entry image
-  app.post("/api/journal-entries/upload", upload.single('image'), async (req, res) => {
+  app.post("/api/journal-entries/upload", isAuthenticated, upload.single('image'), async (req, res) => {
     try {
       console.log("Upload request received:");
       console.log("- Files:", req.file);
