@@ -1,20 +1,29 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, FileText, Tag, Download } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import ExportDialog from "@/components/export-dialog";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {
-  const { data: entries, isLoading } = useQuery({
+  const [page, setPage] = useState(1);
+  const entriesPerPage = 20;
+
+  const { data: allEntries, isLoading } = useQuery({
     queryKey: ['/api/journal-entries'],
     queryFn: async () => {
-      const response = await fetch('/api/journal-entries');
+      const response = await fetch('/api/journal-entries?limit=200');
       return response.json() as Promise<JournalEntryWithDetails[]>;
     }
   });
+
+  const totalPages = Math.ceil((allEntries?.length || 0) / entriesPerPage);
+  const startIndex = (page - 1) * entriesPerPage;
+  const endIndex = startIndex + entriesPerPage;
+  const entries = allEntries?.slice(startIndex, endIndex) || [];
 
   if (isLoading) {
     return (
@@ -42,7 +51,7 @@ export default function Entries() {
               </Link>
               <div>
                 <h1 className="text-xl font-semibold text-[#111827]">Journal Entries</h1>
-                <p className="text-sm text-gray-500">{entries?.length || 0} entries</p>
+                <p className="text-sm text-gray-500">{allEntries?.length || 0} total entries</p>
               </div>
             </div>
             <ExportDialog>
@@ -119,6 +128,63 @@ export default function Entries() {
                 </Card>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1}-{Math.min(endIndex, allEntries?.length || 0)} of {allEntries?.length || 0} entries
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(pageNum)}
+                      className={page === pageNum ? "bg-[#6366F1] hover:bg-indigo-700" : ""}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

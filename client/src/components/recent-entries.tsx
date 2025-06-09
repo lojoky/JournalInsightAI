@@ -7,6 +7,10 @@ import type { JournalEntryWithDetails } from "@shared/schema";
 export default function RecentEntries() {
   const { data: entries, isLoading, error } = useQuery<JournalEntryWithDetails[]>({
     queryKey: ["/api/journal-entries"],
+    queryFn: async () => {
+      const response = await fetch('/api/journal-entries?limit=6');
+      return response.json() as Promise<JournalEntryWithDetails[]>;
+    }
   });
 
   if (isLoading) {
