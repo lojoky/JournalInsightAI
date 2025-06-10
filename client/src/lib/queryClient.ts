@@ -14,17 +14,27 @@ export async function apiRequest(
 ): Promise<Response> {
   const isFormData = data instanceof FormData;
   
-  // For development from deployed domain, redirect to local server
-  const isDevelopment = import.meta.env.DEV;
+  // Get headers for authentication
+  const headers: Record<string, string> = data && !isFormData ? { "Content-Type": "application/json" } : {};
+  
+  // Add Firebase auth token if available and on deployed domain
   const isDeployedDomain = window.location.hostname.includes('replit.app');
+  if (isDeployedDomain) {
+    try {
+      const { auth } = await import('@/lib/firebase');
+      const user = auth.currentUser;
+      if (user) {
+        const idToken = await user.getIdToken();
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+    } catch (error) {
+      console.warn('Could not get Firebase auth token:', error);
+    }
+  }
   
-  const fullUrl = (isDevelopment && isDeployedDomain) 
-    ? `http://localhost:5000${url}` 
-    : url;
-  
-  const res = await fetch(fullUrl, {
+  const res = await fetch(url, {
     method,
-    headers: data && !isFormData ? { "Content-Type": "application/json" } : {},
+    headers,
     body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     credentials: "include",
   });
@@ -39,15 +49,26 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // For development from deployed domain, redirect to local server
-    const isDevelopment = import.meta.env.DEV;
+    // Get headers for authentication
+    const headers: Record<string, string> = {};
+    
+    // Add Firebase auth token if available and on deployed domain
     const isDeployedDomain = window.location.hostname.includes('replit.app');
+    if (isDeployedDomain) {
+      try {
+        const { auth } = await import('@/lib/firebase');
+        const user = auth.currentUser;
+        if (user) {
+          const idToken = await user.getIdToken();
+          headers['Authorization'] = `Bearer ${idToken}`;
+        }
+      } catch (error) {
+        console.warn('Could not get Firebase auth token for query:', error);
+      }
+    }
     
-    const fullUrl = (isDevelopment && isDeployedDomain) 
-      ? `http://localhost:5000${queryKey[0] as string}` 
-      : queryKey[0] as string;
-    
-    const res = await fetch(fullUrl, {
+    const res = await fetch(queryKey[0] as string, {
+      headers,
       credentials: "include",
     });
 
