@@ -300,12 +300,9 @@ export async function createNotionJournalEntry(
       pageData.children = children;
     }
 
-    console.log('Creating Notion page with data:', JSON.stringify(pageData, null, 2));
-    
     const page = await notion.pages.create(pageData);
     
-    console.log(`Successfully created Notion page: ${page.id}`);
-    console.log(`Page URL: https://notion.so/${page.id.replace(/-/g, '')}`);
+    console.log(`Journal entry synced to Notion: https://notion.so/${page.id.replace(/-/g, '')}`);
 
     return page.id;
   } catch (error) {
