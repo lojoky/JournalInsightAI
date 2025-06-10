@@ -289,116 +289,99 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
               <CardContent>
                 {!authUrl ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <h4 className="font-medium text-yellow-800 mb-2">Important Setup Information</h4>
-                      <div className="text-sm text-yellow-700 space-y-2">
-                        <p>For Google OAuth to work properly, the following redirect URI must be added to your Google Cloud Console:</p>
-                        <code className="block bg-yellow-100 p-2 rounded text-xs font-mono">
-                          {diagnostics?.expectedRedirectUri || `${window.location.origin}/api/auth/google/callback`}
-                        </code>
-                        <p>If authentication fails, please verify this redirect URI is configured in your Google Cloud Console OAuth settings.</p>
-                        
-                        {diagnostics && (
-                          <div className="mt-3 pt-3 border-t border-yellow-300">
-                            <p className="font-medium mb-1">Current Configuration:</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <span>Google Client ID:</span>
-                              <span className={diagnostics.hasClientId ? "text-green-700" : "text-red-700"}>
-                                {diagnostics.hasClientId ? "✓ Configured" : "✗ Missing"}
-                              </span>
-                              <span>Google Client Secret:</span>
-                              <span className={diagnostics.hasClientSecret ? "text-green-700" : "text-red-700"}>
-                                {diagnostics.hasClientSecret ? "✓ Configured" : "✗ Missing"}
-                              </span>
-                              <span>Current Domain:</span>
-                              <span>{diagnostics.currentDomain}</span>
-                              {diagnostics.replitDomains && (
-                                <>
-                                  <span>Replit Domains:</span>
-                                  <span>{diagnostics.replitDomains}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-800 mb-2">Connect Your Google Account</h4>
+                      <p className="text-sm text-blue-700">
+                        Securely connect your Google account to automatically sync your journal entries to Google Docs. 
+                        Your data will be stored in a private document in your own Google Drive.
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      First, get authorization to access your Google Drive:
-                    </p>
                     <Button
                       onClick={handleGetAuthUrl}
                       disabled={getAuthUrlMutation.isPending}
-                      className="w-full"
+                      className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white"
                     >
-                      {getAuthUrlMutation.isPending ? "Generating..." : "Get Authorization URL"}
+                      {getAuthUrlMutation.isPending ? "Connecting..." : "Connect Google Account"}
                     </Button>
                     {getAuthUrlMutation.error && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-700">
-                          <strong>Error generating authorization URL:</strong><br/>
+                          <strong>Connection failed:</strong><br/>
                           {getAuthUrlMutation.error.message}
                         </p>
-                        {getAuthUrlMutation.error.message.includes('credentials not configured') && (
-                          <p className="text-xs text-red-600 mt-2">
-                            Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are properly set.
-                          </p>
-                        )}
+                        <p className="text-xs text-red-600 mt-2">
+                          Please try again or contact support if the issue persists.
+                        </p>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded-lg space-y-2">
-                      <p className="text-sm font-medium">Step 1: Authorize Access</p>
-                      <button
-                        onClick={() => window.open(authUrl, 'google-auth', 'width=500,height=600')}
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-sm bg-blue-100 px-3 py-2 rounded border border-blue-200 hover:bg-blue-200 transition-colors"
-                      >
-                        Authorize Google Docs Access
-                        <ExternalLink className="h-3 w-3" />
-                      </button>
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-700 font-medium mb-2">
+                        Ready to Connect Google Drive
+                      </p>
+                      <p className="text-sm text-green-600">
+                        Click below to securely connect your Google account. This will allow the app to create and update a private document in your Google Drive.
+                      </p>
                     </div>
+
+                    <Button
+                      onClick={() => window.open(authUrl, 'google-auth', 'width=500,height=600')}
+                      className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Connect Google Drive
+                    </Button>
                     
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="authCode">Step 2: Enter Authorization Code</Label>
-                        <Input
-                          id="authCode"
-                          placeholder="Paste authorization code here"
-                          {...form.register("authCode")}
-                        />
-                        {form.formState.errors.authCode && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.authCode.message}
-                          </p>
-                        )}
-                      </div>
+                      <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                        <p className="text-sm font-medium">Complete Setup</p>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="authCode">Authorization Code</Label>
+                          <Input
+                            id="authCode"
+                            placeholder="The code will appear here automatically after authorization"
+                            {...form.register("authCode")}
+                            className="font-mono text-xs"
+                            readOnly={!!form.watch("authCode")}
+                          />
+                          {form.formState.errors.authCode && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.authCode.message}
+                            </p>
+                          )}
+                        </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="folderName">Google Drive Folder Name (Optional)</Label>
-                        <Input
-                          id="folderName"
-                          placeholder="Journal Entries"
-                          {...form.register("folderName")}
-                        />
-                        <p className="text-xs text-gray-500">
-                          Name for the folder where your shared journal document will be stored
-                        </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="folderName">Document Name (Optional)</Label>
+                          <Input
+                            id="folderName"
+                            placeholder="My Journal Entries"
+                            {...form.register("folderName")}
+                          />
+                          <p className="text-xs text-gray-500">
+                            Name for the Google Doc where all your journal entries will be stored
+                          </p>
+                        </div>
                       </div>
 
                       <Button
                         type="submit"
                         className="w-full"
-                        disabled={configureMutation.isPending}
+                        disabled={configureMutation.isPending || !form.watch("authCode")}
                       >
-                        {configureMutation.isPending
-                          ? "Configuring..."
-                          : googleDocsConfig?.configured
-                          ? "Update Configuration"
-                          : "Configure Integration"}
+                        {configureMutation.isPending ? "Setting Up..." : "Complete Google Docs Setup"}
                       </Button>
                     </form>
+
+                    <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg space-y-1">
+                      <p className="font-medium">Privacy & Security:</p>
+                      <p>• Only document creation and editing permissions are requested</p>
+                      <p>• Your data stays in your own Google Drive</p>
+                      <p>• You can disconnect anytime from your Google Account settings</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
