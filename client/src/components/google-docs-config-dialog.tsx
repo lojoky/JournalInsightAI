@@ -35,6 +35,12 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
     enabled: isOpen,
   });
 
+  // Get diagnostics information
+  const { data: diagnostics, isLoading: diagnosticsLoading } = useQuery({
+    queryKey: ['/api/integrations/google-docs/diagnostics'],
+    enabled: isOpen,
+  });
+
   const form = useForm<GoogleDocsConfigData>({
     resolver: zodResolver(googleDocsConfigSchema),
     defaultValues: {
@@ -283,6 +289,40 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
               <CardContent>
                 {!authUrl ? (
                   <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="font-medium text-yellow-800 mb-2">Important Setup Information</h4>
+                      <div className="text-sm text-yellow-700 space-y-2">
+                        <p>For Google OAuth to work properly, the following redirect URI must be added to your Google Cloud Console:</p>
+                        <code className="block bg-yellow-100 p-2 rounded text-xs font-mono">
+                          {diagnostics?.expectedRedirectUri || `${window.location.origin}/api/auth/google/callback`}
+                        </code>
+                        <p>If authentication fails, please verify this redirect URI is configured in your Google Cloud Console OAuth settings.</p>
+                        
+                        {diagnostics && (
+                          <div className="mt-3 pt-3 border-t border-yellow-300">
+                            <p className="font-medium mb-1">Current Configuration:</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <span>Google Client ID:</span>
+                              <span className={diagnostics.hasClientId ? "text-green-700" : "text-red-700"}>
+                                {diagnostics.hasClientId ? "✓ Configured" : "✗ Missing"}
+                              </span>
+                              <span>Google Client Secret:</span>
+                              <span className={diagnostics.hasClientSecret ? "text-green-700" : "text-red-700"}>
+                                {diagnostics.hasClientSecret ? "✓ Configured" : "✗ Missing"}
+                              </span>
+                              <span>Current Domain:</span>
+                              <span>{diagnostics.currentDomain}</span>
+                              {diagnostics.replitDomains && (
+                                <>
+                                  <span>Replit Domains:</span>
+                                  <span>{diagnostics.replitDomains}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <p className="text-sm text-gray-600">
                       First, get authorization to access your Google Drive:
                     </p>
@@ -293,6 +333,19 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
                     >
                       {getAuthUrlMutation.isPending ? "Generating..." : "Get Authorization URL"}
                     </Button>
+                    {getAuthUrlMutation.error && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-700">
+                          <strong>Error generating authorization URL:</strong><br/>
+                          {getAuthUrlMutation.error.message}
+                        </p>
+                        {getAuthUrlMutation.error.message.includes('credentials not configured') && (
+                          <p className="text-xs text-red-600 mt-2">
+                            Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are properly set.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">

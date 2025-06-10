@@ -811,9 +811,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth diagnostics endpoint
+  app.get("/api/integrations/google-docs/diagnostics", requireAuth, async (req, res) => {
+    try {
+      const diagnostics = {
+        hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+        hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        currentDomain: req.get('host'),
+        expectedRedirectUri: `${req.protocol}://${req.get('host')}/api/auth/google/callback`,
+        replitDomains: process.env.REPLIT_DOMAINS || null,
+      };
+      
+      res.json(diagnostics);
+    } catch (error) {
+      console.error("Google diagnostics error:", error);
+      res.status(500).json({ message: "Failed to get diagnostics" });
+    }
+  });
+
   app.post("/api/integrations/google-docs/auth-url", requireAuth, async (req, res) => {
     try {
       console.log("Generating Google OAuth URL...");
+      console.log("Current host:", req.get('host'));
+      console.log("Protocol:", req.protocol);
+      console.log("REPLIT_DOMAINS:", process.env.REPLIT_DOMAINS);
       
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
         console.error("Missing Google OAuth credentials");
