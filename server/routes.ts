@@ -333,7 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Process OCR transcription (legacy endpoint for Tesseract)
-  app.post("/api/journal-entries/:id/transcribe", async (req, res) => {
+  app.post("/api/journal-entries/:id/transcribe", requireAuth, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
       const { transcribedText, confidence } = req.body;
@@ -361,13 +361,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Process AI analysis
-  app.post("/api/journal-entries/:id/analyze", async (req, res) => {
+  app.post("/api/journal-entries/:id/analyze", requireAuth, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
       const entry = await storage.getJournalEntry(entryId);
 
       if (!entry || !entry.transcribedText) {
         return res.status(400).json({ message: "Entry not found or not transcribed" });
+      }
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       // Perform AI analysis
@@ -437,15 +442,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get journal entries
-  app.get("/api/journal-entries", async (req, res) => {
+  // Get journal entries - protected route
+  app.get("/api/journal-entries", requireAuth, async (req, res) => {
     try {
-      if (!defaultUser) {
-        return res.status(500).json({ message: "Default user not found" });
-      }
-
       const limit = parseInt(req.query.limit as string) || 10;
-      const entries = await storage.getJournalEntriesByUser(defaultUser.id, limit);
+      console.log(`Fetching journal entries for user ${req.session.userId} with limit ${limit}`);
+      
+      const entries = await storage.getJournalEntriesByUser(req.session.userId!, limit);
+      console.log(`Found ${entries.length} entries for user ${req.session.userId}`);
       
       res.json(entries);
     } catch (error) {
@@ -454,14 +458,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get specific journal entry
-  app.get("/api/journal-entries/:id", async (req, res) => {
+  // Get specific journal entry - protected route
+  app.get("/api/journal-entries/:id", requireAuth, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
       const entry = await storage.getJournalEntry(entryId);
 
       if (!entry) {
         return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       res.json(entry);
@@ -471,14 +480,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add custom tag to entry
-  app.post("/api/journal-entries/:id/tags", async (req, res) => {
+  // Add custom tag to entry - protected route
+  app.post("/api/journal-entries/:id/tags", requireAuth, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
       const { tagName, category } = req.body;
 
       if (!tagName) {
         return res.status(400).json({ message: "Tag name is required" });
+      }
+
+      // Verify user owns the entry
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry || entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       const tag = await storage.getOrCreateTag(tagName.toLowerCase(), category, true);
