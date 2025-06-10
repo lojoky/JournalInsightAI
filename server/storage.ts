@@ -290,6 +290,10 @@ export class DatabaseStorage implements IStorage {
     return entries;
   }
 
+  async deleteJournalEntry(id: number): Promise<void> {
+    await db.delete(journalEntries).where(eq(journalEntries.id, id));
+  }
+
   // User integration methods
   async createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration> {
     const [result] = await db
