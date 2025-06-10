@@ -55,6 +55,8 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
   const updateNotionSettings = useMutation({
     mutationFn: async (data: NotionConfigForm) => {
       console.log('Making request to /api/user/notion-settings with data:', data);
+      console.log('Current hostname:', window.location.hostname);
+      console.log('Should use localhost?', window.location.hostname.includes('replit.app'));
       
       const response = await apiRequest("POST", "/api/user/notion-settings", data);
       return response.json();
