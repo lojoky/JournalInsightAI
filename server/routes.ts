@@ -513,6 +513,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update journal entry - protected route
+  app.patch("/api/journal-entries/:id", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const { transcribedText } = req.body;
+      
+      if (!transcribedText || typeof transcribedText !== 'string') {
+        return res.status(400).json({ message: "Transcribed text is required" });
+      }
+      
+      // Check if entry exists and belongs to current user
+      const existingEntry = await storage.getJournalEntry(entryId);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      if (existingEntry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Update the entry
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText: transcribedText.trim()
+      });
+      
+      res.json({
+        message: "Entry updated successfully",
+        entry: updatedEntry
+      });
+    } catch (error) {
+      console.error("Update journal entry error:", error);
+      res.status(500).json({ message: "Failed to update journal entry" });
+    }
+  });
+
+  // Delete journal entry - protected route
+  app.delete("/api/journal-entries/:id", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      
+      // Check if entry exists and belongs to current user
+      const existingEntry = await storage.getJournalEntry(entryId);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      if (existingEntry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Delete the entry (this will cascade delete related data due to foreign key constraints)
+      await storage.deleteJournalEntry(entryId);
+      
+      res.json({
+        message: "Entry deleted successfully"
+      });
+    } catch (error) {
+      console.error("Delete journal entry error:", error);
+      res.status(500).json({ message: "Failed to delete journal entry" });
+    }
+  });
+
   // Add custom tag to entry - protected route
   app.post("/api/journal-entries/:id/tags", requireAuth, async (req, res) => {
     try {

@@ -64,6 +64,9 @@ export interface IStorage {
   // Failed entries methods
   getFailedEntries(): Promise<JournalEntry[]>;
 
+  // Delete journal entry
+  deleteJournalEntry(id: number): Promise<void>;
+
   // User integration methods
   createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration>;
   updateUserIntegration(userId: number, integrationType: string, updates: Partial<InsertUserIntegration>): Promise<UserIntegration>;
