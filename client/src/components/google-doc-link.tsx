@@ -15,12 +15,19 @@ export default function GoogleDocLink({
   className = "",
   showIcon = true 
 }: GoogleDocLinkProps) {
-  const { data: googleDocsConfig, isLoading } = useQuery({
+  const { data: googleDocsConfig, isLoading } = useQuery<{
+    enabled: boolean;
+    configured: boolean;
+    config?: {
+      folderName: string;
+      documentUrl?: string;
+    };
+  }>({
     queryKey: ['/api/integrations/google-docs'],
   });
 
   // Don't render if Google Docs is not enabled or configured
-  if (isLoading || !googleDocsConfig?.enabled || !googleDocsConfig?.documentUrl) {
+  if (isLoading || !googleDocsConfig?.enabled || !googleDocsConfig?.config?.documentUrl) {
     return null;
   }
 
@@ -32,7 +39,7 @@ export default function GoogleDocLink({
       className={`flex items-center gap-2 ${className}`}
     >
       <a
-        href={googleDocsConfig.documentUrl}
+        href={googleDocsConfig.config?.documentUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2"
