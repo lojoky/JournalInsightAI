@@ -14,7 +14,15 @@ export async function apiRequest(
 ): Promise<Response> {
   const isFormData = data instanceof FormData;
   
-  const res = await fetch(url, {
+  // For development, use localhost:5000 if we're on the deployed domain
+  const baseUrl = window.location.hostname.includes('replit.app') 
+    ? 'http://localhost:5000' 
+    : '';
+  
+  const fullUrl = baseUrl + url;
+  console.log(`Making ${method} request to:`, fullUrl);
+  
+  const res = await fetch(fullUrl, {
     method,
     headers: data && !isFormData ? { "Content-Type": "application/json" } : {},
     body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
@@ -31,7 +39,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    // For development, use localhost:5000 if we're on the deployed domain
+    const baseUrl = window.location.hostname.includes('replit.app') 
+      ? 'http://localhost:5000' 
+      : '';
+    
+    const fullUrl = baseUrl + (queryKey[0] as string);
+    console.log(`Making GET query to:`, fullUrl);
+    
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 
