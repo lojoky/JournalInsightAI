@@ -14,6 +14,7 @@ import { useJournalProcessing } from "@/hooks/use-journal-processing";
 import { useAuth } from "@/components/auth/auth-provider";
 
 export default function Home() {
+  const { user, logout } = useAuth();
   const {
     currentEntry,
     isProcessing,
@@ -24,6 +25,10 @@ export default function Home() {
     analyzeEntry,
     addCustomTag
   } = useJournalProcessing();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -53,9 +58,20 @@ export default function Home() {
                   Export
                 </Button>
               </ExportDialog>
-              <button className="bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">
-                <span className="mr-2">+</span>New Entry
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    {user?.username}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
