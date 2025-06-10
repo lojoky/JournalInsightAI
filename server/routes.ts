@@ -1,7 +1,9 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { authenticateUser, createUser, validateUsername, validatePassword } from "./auth";
+import type { AuthenticatedRequest } from "./types";
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
