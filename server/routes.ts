@@ -76,8 +76,20 @@ const upload = multer({
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: NextFunction) {
+  console.log("Auth check:", {
+    hasSession: !!req.session,
+    userId: req.session?.userId,
+    sessionId: req.session?.id,
+    path: req.path
+  });
+  
   if (!req.session?.userId) {
-    return res.status(401).json({ message: "Authentication required" });
+    console.log("Authentication failed - no session or userId");
+    return res.status(401).json({ 
+      message: "Authentication required",
+      hasSession: !!req.session,
+      sessionExists: req.session?.id ? true : false
+    });
   }
   next();
 }
@@ -821,6 +833,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Authentication test endpoint (public for debugging)
+  app.get("/api/auth-test", async (req, res) => {
+    try {
+      const authTest = {
+        hasSession: !!req.session,
+        sessionId: req.session?.id,
+        userId: req.session?.userId,
+        isAuthenticated: !!req.session?.userId,
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        domain: req.get('host')
+      };
+      
+      console.log("Auth test results:", authTest);
+      res.json(authTest);
+    } catch (error) {
+      console.error("Auth test error:", error);
+      res.status(500).json({ message: "Auth test failed" });
+    }
+  });
+
   // Google OAuth diagnostics endpoint (public for debugging)
   app.get("/api/google-oauth-diagnostics", async (req, res) => {
     try {
@@ -831,7 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasClientId: !!process.env.GOOGLE_CLIENT_ID,
         hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
         currentDomain: req.get('host'),
-        expectedRedirectUri: `${req.protocol}://${req.get('host')}/api/auth/google/callback`,
+        expectedRedirectUri: `https://journal-ai-insights.replit.app/api/auth/google/callback`,
         replitDomains: process.env.REPLIT_DOMAINS || null,
         timestamp: new Date().toISOString(),
       };
@@ -963,16 +996,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary bypass for debugging in production
+  app.post("/api/integrations/google-docs/configure-debug", async (req, res) => {
+    try {
+      console.log("=== DEBUG GOOGLE DOCS CONFIGURATION ===");
+      console.log("Environment:", process.env.NODE_ENV);
+      console.log("Request body:", req.body);
+      console.log("Headers:", req.headers);
+      
+      const { authCode, folderName, userId } = req.body;
+      
+      if (!authCode) {
+        return res.status(400).json({ message: "Authorization code is required" });
+      }
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required for debug mode" });
+      }
+
+      console.log("Testing token exchange...");
+      const tokens = await exchangeCodeForTokens(
+        process.env.GOOGLE_CLIENT_ID!,
+        process.env.GOOGLE_CLIENT_SECRET!,
+        authCode
+      );
+
+      console.log("Token exchange successful:", {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token
+      });
+
+      res.json({
+        success: true,
+        message: "Debug configuration successful",
+        tokens: {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token
+        }
+      });
+    } catch (error: any) {
+      console.error("Debug configuration failed:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+        error: error.name
+      });
+    }
+  });
+
   app.post("/api/integrations/google-docs/configure", requireAuth, async (req, res) => {
     try {
       console.log("=== GOOGLE DOCS CONFIGURATION ATTEMPT ===");
       console.log("User ID:", req.session.userId);
+      console.log("Session data:", { 
+        hasSession: !!req.session,
+        sessionId: req.session?.id,
+        userId: req.session?.userId 
+      });
+      console.log("Request headers:", {
+        contentType: req.get('Content-Type'),
+        userAgent: req.get('User-Agent'),
+        origin: req.get('Origin')
+      });
       console.log("Timestamp:", new Date().toISOString());
       
       const { authCode, folderName } = req.body;
+      console.log("Request body raw:", req.body);
       console.log("Request data:", { 
         hasAuthCode: !!authCode, 
         authCodeLength: authCode?.length || 0,
+        authCodePreview: authCode ? authCode.substring(0, 20) + "..." : "none",
         folderName: folderName || "default" 
       });
 
