@@ -11,6 +11,7 @@ import {
   addJournalEntryToNotion,
   getNotionDatabases 
 } from "./notion";
+import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
@@ -427,6 +428,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: "completed"
       });
 
+      // Sync to Notion if integration is enabled
+      try {
+        const completeEntry = await storage.getJournalEntry(entryId);
+        if (completeEntry) {
+          await syncJournalEntryToNotion(completeEntry);
+        }
+      } catch (syncError) {
+        console.error("Notion sync failed:", syncError);
+        // Don't fail the main request if Notion sync fails
+      }
+
       res.json({
         themes,
         sentiment: sentimentData,
@@ -568,7 +580,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure user's Notion integration
   app.post("/api/integrations/notion/configure", requireAuth, async (req, res) => {
     try {
-      const { integrationToken, pageUrl, databaseName } = req.body;
+      const { integrationToken, pageUrl, databaseName }: {
+        integrationToken: string;
+        pageUrl: string;
+        databaseName?: string;
+      } = req.body;
 
       if (!integrationToken || !pageUrl) {
         return res.status(400).json({ 
@@ -658,8 +674,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Notion integration not configured" });
       }
 
-      const notion = createNotionClient(integration.config.integrationToken);
-      const databases = await getNotionDatabases(notion, integration.config.pageId);
+      const config = integration.config as { integrationToken: string; pageId: string };
+      const notion = createNotionClient(config.integrationToken);
+      const databases = await getNotionDatabases(notion, config.pageId);
       
       res.json({ 
         success: true, 
@@ -670,6 +687,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Test Notion connection error:", error);
       res.status(400).json({ 
         message: "Connection failed. Please check your configuration." 
+      });
+    }
+  });
+
+  // Bulk sync all entries to Notion
+  app.post("/api/integrations/notion/sync-all", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "notion");
+      
+      if (!integration || !integration.isEnabled) {
+        return res.status(400).json({ message: "Notion integration not enabled" });
+      }
+
+      const result = await syncAllUserEntriesToNotion(req.session.userId!);
+      
+      res.json({ 
+        message: `Sync completed: ${result.success} successful, ${result.failed} failed`,
+        successCount: result.success,
+        failedCount: result.failed
+      });
+    } catch (error) {
+      console.error("Bulk sync error:", error);
+      res.status(500).json({ 
+        message: "Bulk sync failed. Please try again." 
       });
     }
   });

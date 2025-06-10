@@ -61,8 +61,7 @@ export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): 
 
       // Update sync status
       await storage.updateNotionEntry(existingNotionEntry.id, {
-        syncStatus: "synced",
-        lastSyncAt: new Date()
+        syncStatus: "synced"
       });
     } else {
       // Create new Notion entry

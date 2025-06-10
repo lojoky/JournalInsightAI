@@ -210,16 +210,27 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
                       {notionConfig.config?.databaseName || "Journal Entries"}
                     </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTest}
-                    disabled={testMutation.isPending}
-                    className="w-full"
-                  >
-                    <TestTube className="h-4 w-4 mr-2" />
-                    {testMutation.isPending ? "Testing..." : "Test Connection"}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTest}
+                      disabled={testMutation.isPending}
+                      className="w-full"
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      {testMutation.isPending ? "Testing..." : "Test Connection"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncAllMutation.mutate()}
+                      disabled={syncAllMutation.isPending || !notionConfig.enabled}
+                      className="w-full"
+                    >
+                      {syncAllMutation.isPending ? "Syncing..." : "Sync All Entries"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
