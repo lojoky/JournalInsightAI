@@ -1,6 +1,7 @@
 import 'express-session';
 import type { User } from '@shared/schema';
 import type { Request } from 'express';
+import type { Session } from 'express-session';
 
 declare module 'express-session' {
   interface SessionData {
@@ -10,8 +11,8 @@ declare module 'express-session' {
 }
 
 export interface AuthenticatedRequest extends Request {
-  session: {
+  session: Session & {
     userId?: number;
     user?: User;
-  } & Express.SessionData;
+  };
 }

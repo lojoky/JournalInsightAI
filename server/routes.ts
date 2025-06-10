@@ -64,7 +64,113 @@ const upload = multer({
   }
 });
 
+// Authentication middleware
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      
+      const result = await authenticateUser(username, password);
+      
+      if (result.success && result.user) {
+        req.session.userId = result.user.id;
+        req.session.user = result.user;
+        
+        res.json({
+          success: true,
+          user: {
+            id: result.user.id,
+            username: result.user.username,
+            createdAt: result.user.createdAt
+          }
+        });
+      } else {
+        res.status(401).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      
+      // Validate input
+      const usernameValidation = validateUsername(username);
+      if (!usernameValidation.valid) {
+        return res.status(400).json({ message: usernameValidation.error });
+      }
+      
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ message: passwordValidation.error });
+      }
+      
+      const result = await createUser(username, password);
+      
+      if (result.success && result.user) {
+        req.session.userId = result.user.id;
+        req.session.user = result.user;
+        
+        res.json({
+          success: true,
+          user: {
+            id: result.user.id,
+            username: result.user.username,
+            createdAt: result.user.createdAt
+          }
+        });
+      } else {
+        res.status(400).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Signup failed" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (req.session?.userId && req.session?.user) {
+      res.json({
+        user: {
+          id: req.session.user.id,
+          username: req.session.user.username,
+          createdAt: req.session.user.createdAt
+        }
+      });
+    } else {
+      res.status(401).json({ message: "Not authenticated" });
+    }
+  });
   // Create default user for demo purposes
   let defaultUser: any = null;
   try {
@@ -100,8 +206,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Upload journal entry image
-  app.post("/api/journal-entries/upload", upload.single('image'), async (req, res) => {
+  // Upload journal entry image - protected route
+  app.post("/api/journal-entries/upload", requireAuth, upload.single('image'), async (req, res) => {
     try {
       console.log("Upload request received:");
       console.log("- Files:", req.file);
@@ -159,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create journal entry with pending status
       const entry = await storage.createJournalEntry({
-        userId: defaultUser.id,
+        userId: req.session.userId!,
         title,
         originalImageUrl: `/uploads/${req.file.filename}`,
         processingStatus: "pending"
@@ -179,13 +285,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Extract text using OpenAI Vision (much better for handwriting)
-  app.post("/api/journal-entries/:id/extract-text", async (req, res) => {
+  app.post("/api/journal-entries/:id/extract-text", requireAuth, async (req, res) => {
     try {
       const entryId = parseInt(req.params.id);
       const entry = await storage.getJournalEntry(entryId);
       
       if (!entry) {
         return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       // Get the image path - use converted image if available
