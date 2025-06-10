@@ -59,11 +59,21 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
       };
 
       // Check if we have a Firebase user and get the auth token
-      const user = auth.currentUser;
-      if (user) {
-        const token = await user.getIdToken();
-        headers.Authorization = `Bearer ${token}`;
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          headers.Authorization = `Bearer ${token}`;
+          console.log('Adding Firebase auth token to request');
+        } else {
+          console.log('No Firebase user found, using session auth');
+        }
+      } catch (authError) {
+        console.error('Auth token error:', authError);
       }
+
+      console.log('Making request to /api/user/notion-settings with headers:', headers);
+      console.log('Request body:', data);
 
       const response = await fetch("/api/user/notion-settings", {
         method: "POST",
@@ -72,8 +82,12 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
         body: JSON.stringify(data),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Error response:', errorData);
         throw new Error(errorData.message || "Failed to update Notion settings");
       }
 
