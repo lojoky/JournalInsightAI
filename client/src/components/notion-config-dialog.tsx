@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
 
 
 const notionConfigSchema = z.object({
@@ -52,11 +53,21 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
 
   const updateNotionSettings = useMutation({
     mutationFn: async (data: NotionConfigForm) => {
+      // Get Firebase auth token if available
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Check if we have a Firebase user and get the auth token
+      const user = auth.currentUser;
+      if (user) {
+        const token = await user.getIdToken();
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch("/api/user/notion-settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         credentials: "include",
         body: JSON.stringify(data),
       });

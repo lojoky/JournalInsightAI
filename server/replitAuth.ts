@@ -128,9 +128,21 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check Firebase authentication first
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const { authenticateFirebase } = await import('./firebaseAuth');
+      return authenticateFirebase(req, res, next);
+    } catch (error) {
+      console.error('Firebase auth error:', error);
+    }
+  }
+
+  // Fallback to Replit authentication
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
