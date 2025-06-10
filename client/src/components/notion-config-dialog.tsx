@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
+
 const notionConfigSchema = z.object({
   notionIntegrationSecret: z.string().min(1, "Integration secret is required"),
   notionPageUrl: z.string().url("Please enter a valid Notion page URL"),
@@ -56,11 +57,13 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update Notion settings");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update Notion settings");
       }
 
       return response.json();

@@ -554,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Notion settings updated successfully" });
     } catch (error) {
       console.error("Update Notion settings error:", error);
-      res.status(500).json({ message: "Failed to update Notion settings", error: error.message });
+      res.status(500).json({ message: "Failed to update Notion settings", error: (error as Error).message });
     }
   });
 
