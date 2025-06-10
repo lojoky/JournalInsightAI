@@ -49,24 +49,35 @@ export async function createJournalFolder(auth: OAuth2Client, folderName: string
   }
 }
 
-export async function createJournalDocument(
+export async function findOrCreateSharedJournalDocument(
   auth: OAuth2Client,
-  entry: JournalEntryWithDetails,
   folderId: string,
-  entryDate?: string
+  documentTitle: string = "My Journal"
 ) {
   const docs = google.docs({ version: 'v1', auth });
   const drive = google.drive({ version: 'v3', auth });
   
   try {
-    // Format the date for the document title
-    const displayDate = entryDate ? new Date(entryDate).toLocaleDateString() : new Date(entry.createdAt).toLocaleDateString();
-    const docTitle = `${entry.title || 'Journal Entry'} - ${displayDate}`;
+    // Search for existing journal document in the folder
+    const existingDocs = await drive.files.list({
+      q: `name='${documentTitle}' and parents in '${folderId}' and mimeType='application/vnd.google-apps.document' and trashed=false`,
+      fields: 'files(id, name)'
+    });
     
-    // Create the document
+    if (existingDocs.data.files && existingDocs.data.files.length > 0) {
+      const existingDoc = existingDocs.data.files[0];
+      return {
+        documentId: existingDoc.id!,
+        title: existingDoc.name!,
+        url: `https://docs.google.com/document/d/${existingDoc.id}/edit`,
+        isNew: false
+      };
+    }
+    
+    // Create new shared document
     const doc = await docs.documents.create({
       requestBody: {
-        title: docTitle
+        title: documentTitle
       }
     });
     
@@ -82,103 +93,128 @@ export async function createJournalDocument(
       fields: 'id, parents'
     });
     
-    // Prepare content for the document
-    const requests: any[] = [];
-    let insertIndex = 1;
-    
-    // Add title
-    requests.push({
-      insertText: {
-        location: { index: insertIndex },
-        text: `${entry.title || 'Journal Entry'}\n\n`
-      }
-    });
-    insertIndex += (entry.title || 'Journal Entry').length + 2;
-    
-    // Add date
-    const dateText = `Date: ${displayDate}\n\n`;
-    requests.push({
-      insertText: {
-        location: { index: insertIndex },
-        text: dateText
-      }
-    });
-    insertIndex += dateText.length;
-    
-    // Add tags if available
-    if (entry.tags && entry.tags.length > 0) {
-      const tagsText = `Tags: ${entry.tags.map(tag => tag.name).join(', ')}\n\n`;
-      requests.push({
+    // Add initial content to new document
+    const requests = [
+      {
         insertText: {
-          location: { index: insertIndex },
-          text: tagsText
+          location: { index: 1 },
+          text: `${documentTitle}\n\nThis document contains all your journal entries, automatically synchronized from your journal app.\n\n`
         }
-      });
-      insertIndex += tagsText.length;
+      },
+      {
+        updateTextStyle: {
+          range: {
+            startIndex: 1,
+            endIndex: documentTitle.length + 1
+          },
+          textStyle: {
+            bold: true,
+            fontSize: {
+              magnitude: 20,
+              unit: 'PT'
+            }
+          },
+          fields: 'bold,fontSize'
+        }
+      }
+    ];
+    
+    await docs.documents.batchUpdate({
+      documentId: doc.data.documentId,
+      requestBody: { requests }
+    });
+    
+    return {
+      documentId: doc.data.documentId,
+      title: documentTitle,
+      url: `https://docs.google.com/document/d/${doc.data.documentId}/edit`,
+      isNew: true
+    };
+    
+  } catch (error) {
+    console.error('Error creating/finding shared Google Doc:', error);
+    throw error;
+  }
+}
+
+export async function addEntryToSharedDocument(
+  auth: OAuth2Client,
+  documentId: string,
+  entry: JournalEntryWithDetails,
+  entryDate?: string
+) {
+  const docs = google.docs({ version: 'v1', auth });
+  
+  try {
+    // Get current document to find insertion point
+    const doc = await docs.documents.get({ documentId });
+    
+    if (!doc.data.body || !doc.data.body.content) {
+      throw new Error('Document content not found');
     }
     
-    // Add main content
+    // Find the end of the document
+    let endIndex = 1;
+    for (const element of doc.data.body.content) {
+      if (element.endIndex) {
+        endIndex = Math.max(endIndex, element.endIndex);
+      }
+    }
+    
+    // Format the date for the entry
+    const displayDate = entryDate ? new Date(entryDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : new Date(entry.createdAt).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    // Build entry content
+    let entryContent = `\n${entry.title || 'Journal Entry'}\n`;
+    entryContent += `${displayDate}\n\n`;
+    
     if (entry.transcribedText) {
-      const contentText = `${entry.transcribedText}\n\n`;
-      requests.push({
-        insertText: {
-          location: { index: insertIndex },
-          text: contentText
-        }
-      });
-      insertIndex += contentText.length;
+      entryContent += `${entry.transcribedText}\n\n`;
     }
     
-    // Add themes if available
     if (entry.themes && entry.themes.length > 0) {
-      const themesHeader = "Key Themes:\n";
-      requests.push({
-        insertText: {
-          location: { index: insertIndex },
-          text: themesHeader
-        }
-      });
-      insertIndex += themesHeader.length;
-      
+      entryContent += `Key Themes:\n`;
       for (const theme of entry.themes) {
-        const themeText = `• ${theme.title}: ${theme.description}\n`;
-        requests.push({
-          insertText: {
-            location: { index: insertIndex },
-            text: themeText
-          }
-        });
-        insertIndex += themeText.length;
+        entryContent += `• ${theme.title}: ${theme.description}\n`;
       }
-      
-      requests.push({
-        insertText: {
-          location: { index: insertIndex },
-          text: "\n"
-        }
-      });
-      insertIndex += 1;
+      entryContent += `\n`;
     }
     
-    // Add image reference if available
-    if (entry.originalImageUrl) {
-      const imageText = `\nOriginal Image: ${entry.originalImageUrl}\n`;
-      requests.push({
-        insertText: {
-          location: { index: insertIndex },
-          text: imageText
-        }
-      });
-      insertIndex += imageText.length;
+    if (entry.tags && entry.tags.length > 0) {
+      entryContent += `Tags: ${entry.tags.map(tag => `#${tag.name}`).join(' ')}\n\n`;
     }
     
-    // Apply formatting
-    const titleEndIndex = (entry.title || 'Journal Entry').length + 1;
+    entryContent += `---\n\n`;
+    
+    // Prepare requests
+    const requests: any[] = [];
+    const titleStart = endIndex - 1;
+    const titleEnd = titleStart + (entry.title || 'Journal Entry').length + 1;
+    
+    // Insert the content
+    requests.push({
+      insertText: {
+        location: { index: endIndex - 1 },
+        text: entryContent
+      }
+    });
+    
+    // Format the title
     requests.push({
       updateTextStyle: {
         range: {
-          startIndex: 1,
-          endIndex: titleEndIndex
+          startIndex: titleStart + 1,
+          endIndex: titleEnd
         },
         textStyle: {
           bold: true,
@@ -191,24 +227,19 @@ export async function createJournalDocument(
       }
     });
     
-    // Update the document with content
-    if (requests.length > 0) {
-      await docs.documents.batchUpdate({
-        documentId: doc.data.documentId,
-        requestBody: {
-          requests: requests
-        }
-      });
-    }
+    // Update the document
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: { requests }
+    });
     
     return {
-      documentId: doc.data.documentId,
-      title: docTitle,
-      url: `https://docs.google.com/document/d/${doc.data.documentId}/edit`
+      documentId,
+      url: `https://docs.google.com/document/d/${documentId}/edit`
     };
     
   } catch (error) {
-    console.error('Error creating Google Doc:', error);
+    console.error('Error adding entry to shared Google Doc:', error);
     throw error;
   }
 }

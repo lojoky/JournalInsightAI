@@ -2,8 +2,8 @@ import { storage } from "./storage";
 import { 
   createGoogleClient, 
   createJournalFolder, 
-  createJournalDocument,
-  updateJournalDocument 
+  findOrCreateSharedJournalDocument,
+  addEntryToSharedDocument
 } from "./google-docs";
 import type { JournalEntryWithDetails } from "@shared/schema";
 import OpenAI from "openai";
@@ -69,44 +69,44 @@ Response (just the date or "none"):`;
       }
     }
 
-    // Check if document already exists for this entry
-    const existingGoogleDoc = await storage.getGoogleDocByJournalId?.(entry.id);
+    // Check if entry already exists in the shared document
+    const existingGoogleDoc = await storage.getGoogleDocByJournalId(entry.id);
 
     if (existingGoogleDoc && existingGoogleDoc.googleDocId) {
-      // Update existing document
-      console.log(`Updating existing Google Doc for journal ${entry.id}`);
-      
-      const updatedDoc = await updateJournalDocument(auth, existingGoogleDoc.googleDocId, entry, entryDate);
-      
-      // Update sync status
-      await storage.updateGoogleDoc?.(existingGoogleDoc.id, {
-        syncStatus: "synced"
-      });
-    } else {
-      // Create new document
-      console.log(`Creating new Google Doc for journal ${entry.id}`);
-      
-      const newDoc = await createJournalDocument(auth, entry, folder.id, entryDate);
-
-      // Store the Google Doc reference
-      await storage.createGoogleDoc?.({
-        journalEntryId: entry.id,
-        userId: entry.userId,
-        googleDocId: newDoc.documentId,
-        googleFolderId: folder.id,
-        documentUrl: newDoc.url,
-        syncStatus: "synced"
-      });
+      console.log(`Entry ${entry.id} already synced to shared Google Doc`);
+      return;
     }
+
+    // Find or create the shared journal document
+    const sharedDoc = await findOrCreateSharedJournalDocument(auth, folder.id, config.folderName || 'My Journal');
+
+    if (!sharedDoc.documentId) {
+      throw new Error('Failed to create or find shared Google Doc');
+    }
+
+    // Add the entry to the shared document
+    console.log(`Adding journal entry ${entry.id} to shared Google Doc`);
+    
+    await addEntryToSharedDocument(auth, sharedDoc.documentId, entry, entryDate);
+
+    // Store the Google Doc reference for this entry
+    await storage.createGoogleDoc({
+      journalEntryId: entry.id,
+      userId: entry.userId,
+      documentId: sharedDoc.documentId,
+      documentUrl: sharedDoc.url,
+      folderId: folder.id,
+      syncStatus: "synced"
+    });
 
     console.log(`Successfully synced journal entry ${entry.id} to Google Docs`);
   } catch (error) {
     console.error(`Failed to sync journal entry ${entry.id} to Google Docs:`, error);
     
     // Update sync status to failed if entry exists
-    const existingGoogleDoc = await storage.getGoogleDocByJournalId?.(entry.id);
+    const existingGoogleDoc = await storage.getGoogleDocByJournalId(entry.id);
     if (existingGoogleDoc) {
-      await storage.updateGoogleDoc?.(existingGoogleDoc.id, {
+      await storage.updateGoogleDoc(existingGoogleDoc.id, {
         syncStatus: "failed"
       });
     }
