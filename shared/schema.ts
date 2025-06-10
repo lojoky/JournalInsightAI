@@ -229,6 +229,15 @@ export const insertNotionEntrySchema = createInsertSchema(notionEntries).pick({
   syncStatus: true,
 });
 
+export const insertGoogleDocSchema = createInsertSchema(googleDocs).pick({
+  journalEntryId: true,
+  userId: true,
+  googleDocId: true,
+  googleFolderId: true,
+  documentUrl: true,
+  syncStatus: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -253,6 +262,9 @@ export type UserIntegration = typeof userIntegrations.$inferSelect;
 
 export type InsertNotionEntry = z.infer<typeof insertNotionEntrySchema>;
 export type NotionEntry = typeof notionEntries.$inferSelect;
+
+export type InsertGoogleDoc = z.infer<typeof insertGoogleDocSchema>;
+export type GoogleDoc = typeof googleDocs.$inferSelect;
 
 // Enhanced types for API responses
 export type JournalEntryWithDetails = JournalEntry & {
