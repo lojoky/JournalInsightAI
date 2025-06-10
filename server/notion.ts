@@ -53,6 +53,7 @@ export async function setupJournalDatabase() {
           });
 
           console.log(`Found database: ${JSON.stringify((databaseInfo as any).title)}`);
+          console.log(`Database URL: https://notion.so/${databaseInfo.id.replace(/-/g, '')}`);
 
           // Return the first database we find for now
           console.log(`Using existing database: ${databaseInfo.id}`);
