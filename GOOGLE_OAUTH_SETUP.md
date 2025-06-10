@@ -18,7 +18,7 @@ https://journal-ai-insights.replit.app/api/auth/google/callback
 4. Click to edit it
 5. In the "Authorized redirect URIs" section, add:
    ```
-   https://50ef1d15-2950-4b02-aa94-9c679aaebc13-00-kzw6ayjwkh0z.worf.replit.dev/api/auth/google/callback
+   https://journal-ai-insights.replit.app/api/auth/google/callback
    ```
 6. Save the changes
 
