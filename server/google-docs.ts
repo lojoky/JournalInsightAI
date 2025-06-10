@@ -341,20 +341,53 @@ export async function exchangeCodeForTokens(
   clientSecret: string,
   code: string
 ) {
-  // Get the current host from environment or default to localhost
-  const baseUrl = process.env.REPLIT_DOMAINS ? 
-    `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
-    'http://localhost:5000';
-  
-  const redirectUri = `${baseUrl}/api/auth/google/callback`;
-  
-  const oauth2Client = new OAuth2Client(
-    clientId,
-    clientSecret,
-    redirectUri
-  );
-  
-  const { tokens } = await oauth2Client.getToken(code);
-  console.log('Successfully exchanged code for tokens');
-  return tokens;
+  try {
+    // Get the current host from environment or default to localhost
+    const baseUrl = process.env.REPLIT_DOMAINS ? 
+      `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
+      'http://localhost:5000';
+    
+    const redirectUri = `${baseUrl}/api/auth/google/callback`;
+    
+    console.log('Token exchange parameters:', {
+      clientId: clientId.substring(0, 20) + '...',
+      redirectUri,
+      codeLength: code.length
+    });
+    
+    const oauth2Client = new OAuth2Client(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+    
+    const { tokens } = await oauth2Client.getToken(code);
+    
+    console.log('Token exchange successful:', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      accessTokenLength: tokens.access_token?.length,
+      refreshTokenLength: tokens.refresh_token?.length,
+      tokenType: tokens.token_type,
+      scope: tokens.scope
+    });
+    
+    return tokens;
+  } catch (error: any) {
+    console.error('Token exchange failed:', {
+      error: error?.message,
+      code: error?.code,
+      status: error?.status,
+      details: error?.response?.data || error?.response
+    });
+    
+    // Re-throw with more context
+    if (error?.message?.includes('invalid_grant')) {
+      throw new Error('Authorization code expired or already used. Please restart the authorization process.');
+    } else if (error?.message?.includes('redirect_uri_mismatch')) {
+      throw new Error('OAuth redirect URI mismatch. The redirect URI in your Google Cloud Console must match the current domain.');
+    } else {
+      throw new Error(`Google OAuth token exchange failed: ${error?.message || 'Unknown error'}`);
+    }
+  }
 }

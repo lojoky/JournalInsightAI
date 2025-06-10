@@ -30,13 +30,26 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
   const queryClient = useQueryClient();
 
   // Get current Google Docs integration status
-  const { data: googleDocsConfig, isLoading } = useQuery({
+  const { data: googleDocsConfig, isLoading } = useQuery<{
+    enabled: boolean;
+    configured: boolean;
+    config?: {
+      folderName: string;
+      documentUrl?: string;
+    };
+  }>({
     queryKey: ['/api/integrations/google-docs'],
     enabled: isOpen,
   });
 
   // Get diagnostics information
-  const { data: diagnostics, isLoading: diagnosticsLoading } = useQuery({
+  const { data: diagnostics, isLoading: diagnosticsLoading } = useQuery<{
+    hasClientId: boolean;
+    hasClientSecret: boolean;
+    currentDomain: string;
+    expectedRedirectUri: string;
+    replitDomains: string | null;
+  }>({
     queryKey: ['/api/integrations/google-docs/diagnostics'],
     enabled: isOpen,
   });
