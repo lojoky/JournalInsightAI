@@ -112,9 +112,6 @@ export async function createJournalDatabase(notion: Client, pageId: string) {
         options: []
       }
     },
-    Content: {
-      rich_text: {}
-    },
     Photo: {
       files: {}
     },
@@ -161,15 +158,6 @@ export async function addJournalEntryToNotion(
     Tags: {
       multi_select: entry.tags.map(tag => ({ name: tag }))
     },
-    Content: {
-      rich_text: [
-        {
-          text: {
-            content: entry.content || ""
-          }
-        }
-      ]
-    },
     "Processing Status": {
       select: {
         name: entry.processingStatus === "completed" ? "Completed" : 
@@ -193,12 +181,65 @@ export async function addJournalEntryToNotion(
     };
   }
 
-  return await notion.pages.create({
+  // Create the page in the database
+  const page = await notion.pages.create({
     parent: {
       database_id: databaseId
     },
     properties
   });
+
+  // Add content as page blocks (rich text content)
+  const blocks: any[] = [];
+
+  // Add journal content as paragraph blocks
+  if (entry.content) {
+    // Split content into paragraphs and create blocks
+    const paragraphs = entry.content.split('\n').filter(p => p.trim());
+    
+    for (const paragraph of paragraphs) {
+      if (paragraph.trim()) {
+        blocks.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: paragraph.trim()
+                }
+              }
+            ]
+          }
+        });
+      }
+    }
+  }
+
+  // Add image if available
+  if (entry.imageUrl) {
+    blocks.push({
+      object: 'block',
+      type: 'image',
+      image: {
+        type: 'external',
+        external: {
+          url: entry.imageUrl
+        }
+      }
+    });
+  }
+
+  // Add blocks to the page if we have any content
+  if (blocks.length > 0) {
+    await notion.blocks.children.append({
+      block_id: page.id,
+      children: blocks
+    });
+  }
+
+  return page;
 }
 
 // Update existing Notion entry
@@ -212,18 +253,6 @@ export async function updateNotionEntry(
   }
 ) {
   const properties: any = {};
-
-  if (updates.content) {
-    properties.Content = {
-      rich_text: [
-        {
-          text: {
-            content: updates.content
-          }
-        }
-      ]
-    };
-  }
 
   if (updates.tags) {
     properties.Tags = {
@@ -240,8 +269,56 @@ export async function updateNotionEntry(
     };
   }
 
-  return await notion.pages.update({
+  // Update page properties
+  await notion.pages.update({
     page_id: pageId,
     properties
   });
+
+  // Update page content if provided
+  if (updates.content) {
+    // Get existing blocks and replace content blocks
+    const existingBlocks = await notion.blocks.children.list({
+      block_id: pageId
+    });
+
+    // Delete existing content blocks (but keep images)
+    for (const block of existingBlocks.results) {
+      if ('type' in block && block.type === 'paragraph') {
+        await notion.blocks.delete({
+          block_id: block.id
+        });
+      }
+    }
+
+    // Add new content blocks
+    const blocks: any[] = [];
+    const paragraphs = updates.content.split('\n').filter(p => p.trim());
+    
+    for (const paragraph of paragraphs) {
+      if (paragraph.trim()) {
+        blocks.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: paragraph.trim()
+                }
+              }
+            ]
+          }
+        });
+      }
+    }
+
+    if (blocks.length > 0) {
+      await notion.blocks.children.append({
+        block_id: pageId,
+        children: blocks
+      });
+    }
+  }
 }
