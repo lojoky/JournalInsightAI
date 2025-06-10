@@ -143,6 +143,36 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
     },
   });
 
+  // Bulk sync all entries
+  const syncAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/integrations/notion/sync-all', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (result) => {
+      toast({
+        title: "Sync Completed",
+        description: result.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: NotionConfigData) => {
     configureMutation.mutate(data);
   };
