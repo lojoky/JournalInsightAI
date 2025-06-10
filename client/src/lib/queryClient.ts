@@ -14,13 +14,8 @@ export async function apiRequest(
 ): Promise<Response> {
   const isFormData = data instanceof FormData;
   
-  // For development, use localhost:5000 if we're on the deployed domain
-  const baseUrl = window.location.hostname.includes('replit.app') 
-    ? 'http://localhost:5000' 
-    : '';
-  
-  const fullUrl = baseUrl + url;
-  console.log(`Making ${method} request to:`, fullUrl);
+  // Use relative URLs for requests
+  const fullUrl = url;
   
   const res = await fetch(fullUrl, {
     method,
@@ -39,13 +34,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // For development, use localhost:5000 if we're on the deployed domain
-    const baseUrl = window.location.hostname.includes('replit.app') 
-      ? 'http://localhost:5000' 
-      : '';
-    
-    const fullUrl = baseUrl + (queryKey[0] as string);
-    console.log(`Making GET query to:`, fullUrl);
+    // Use relative URLs for queries
+    const fullUrl = queryKey[0] as string;
     
     const res = await fetch(fullUrl, {
       credentials: "include",
