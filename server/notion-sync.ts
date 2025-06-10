@@ -50,9 +50,7 @@ export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): 
     // Check if we have transcribed text to analyze for date
     if (entry.transcribedText) {
       try {
-        const dateExtractionPrompt = `
-Extract the date mentioned in this journal entry. Look for explicit dates like "January 15", "Jan 15th", "1/15", "15th", etc.
-Return only the date in YYYY-MM-DD format, or "none" if no specific date is mentioned.
+        const dateExtractionPrompt = `Extract the date mentioned in this journal entry. Look for explicit dates like "January 15", "Jan 15th", "1/15", "15th", etc. Return only the date in YYYY-MM-DD format, or "none" if no specific date is mentioned.
 
 Journal text: "${entry.transcribedText.substring(0, 500)}"
 
