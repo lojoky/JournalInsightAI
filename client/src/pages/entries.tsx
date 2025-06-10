@@ -148,12 +148,15 @@ export default function Entries() {
                 <p className="text-sm text-gray-500">{allEntries?.length || 0} total entries</p>
               </div>
             </div>
-            <ExportDialog>
-              <Button className="bg-[#6366F1] hover:bg-indigo-700">
-                <Download className="w-4 h-4 mr-2" />
-                Export All
-              </Button>
-            </ExportDialog>
+            <div className="flex items-center gap-3">
+              <GoogleDocLink variant="outline" size="sm" />
+              <ExportDialog>
+                <Button className="bg-[#6366F1] hover:bg-indigo-700">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export All
+                </Button>
+              </ExportDialog>
+            </div>
           </div>
         </div>
       </div>
