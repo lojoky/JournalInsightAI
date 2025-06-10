@@ -4,6 +4,7 @@ import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle,
 import { Link } from "wouter";
 import RetryFailedEntries from "@/components/retry-failed-entries";
 import NotionConfigDialog from "@/components/notion-config-dialog";
+import GoogleDocsConfigDialog from "@/components/google-docs-config-dialog";
 
 export default function Settings() {
   return (
@@ -51,6 +52,17 @@ export default function Settings() {
                   Configure
                 </Button>
               </NotionConfigDialog>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900">Google Docs</h4>
+                <p className="text-sm text-gray-500">Create individual Google Docs for each journal entry in your Drive folder</p>
+              </div>
+              <GoogleDocsConfigDialog>
+                <Button variant="outline" size="sm">
+                  Configure
+                </Button>
+              </GoogleDocsConfigDialog>
             </div>
           </CardContent>
         </Card>

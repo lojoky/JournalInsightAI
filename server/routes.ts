@@ -12,6 +12,8 @@ import {
   getNotionDatabases 
 } from "./notion";
 import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
+import { syncJournalEntryToGoogleDocs, syncAllUserEntriesToGoogleDocs } from "./google-docs-sync";
+import { getAuthUrl, exchangeCodeForTokens } from "./google-docs";
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
@@ -428,15 +430,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: "completed"
       });
 
-      // Sync to Notion if integration is enabled
+      // Sync to integrations if enabled
       try {
         const completeEntry = await storage.getJournalEntry(entryId);
         if (completeEntry) {
-          await syncJournalEntryToNotion(completeEntry);
+          // Sync to Notion
+          try {
+            await syncJournalEntryToNotion(completeEntry);
+          } catch (notionError) {
+            console.error("Notion sync failed:", notionError);
+          }
+          
+          // Sync to Google Docs
+          try {
+            await syncJournalEntryToGoogleDocs(completeEntry);
+          } catch (googleDocsError) {
+            console.error("Google Docs sync failed:", googleDocsError);
+          }
         }
       } catch (syncError) {
-        console.error("Notion sync failed:", syncError);
-        // Don't fail the main request if Notion sync fails
+        console.error("Integration sync failed:", syncError);
+        // Don't fail the main request if sync fails
       }
 
       res.json({
@@ -566,9 +580,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         enabled: integration.isEnabled,
         configured: !!integration.config,
         config: integration.config ? {
-          hasToken: !!integration.config.integrationToken,
-          hasPageUrl: !!integration.config.pageUrl,
-          databaseName: integration.config.databaseName || "Journal Entries"
+          hasToken: !!(integration.config as any).integrationToken,
+          hasPageUrl: !!(integration.config as any).pageUrl,
+          databaseName: (integration.config as any).databaseName || "Journal Entries"
         } : null
       });
     } catch (error) {
@@ -709,6 +723,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Bulk sync error:", error);
+      res.status(500).json({ 
+        message: "Bulk sync failed. Please try again." 
+      });
+    }
+  });
+
+  // Google Docs integration routes
+  app.get("/api/integrations/google-docs", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "google_docs");
+      
+      if (!integration) {
+        return res.json({ enabled: false, configured: false });
+      }
+
+      res.json({
+        enabled: integration.isEnabled,
+        configured: !!integration.config,
+        config: integration.config
+      });
+    } catch (error) {
+      console.error("Get Google Docs integration error:", error);
+      res.status(500).json({ message: "Failed to get Google Docs integration status" });
+    }
+  });
+
+  app.post("/api/integrations/google-docs/auth-url", requireAuth, async (req, res) => {
+    try {
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(500).json({ message: "Google OAuth credentials not configured" });
+      }
+
+      const authUrl = await getAuthUrl(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Generate Google auth URL error:", error);
+      res.status(500).json({ message: "Failed to generate authorization URL" });
+    }
+  });
+
+  app.post("/api/integrations/google-docs/configure", requireAuth, async (req, res) => {
+    try {
+      const { authCode, folderName } = req.body;
+
+      if (!authCode) {
+        return res.status(400).json({ message: "Authorization code is required" });
+      }
+
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(500).json({ message: "Google OAuth credentials not configured" });
+      }
+
+      const tokens = await exchangeCodeForTokens(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        authCode
+      );
+
+      if (!tokens.access_token || !tokens.refresh_token) {
+        return res.status(400).json({ message: "Failed to exchange authorization code for tokens" });
+      }
+
+      const config = {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        folderName: folderName || "Journal Entries"
+      };
+
+      const existingIntegration = await storage.getUserIntegration(req.session.userId!, "google_docs");
+
+      if (existingIntegration) {
+        await storage.updateUserIntegration(req.session.userId!, "google_docs", {
+          config,
+          isEnabled: true
+        });
+      } else {
+        await storage.createUserIntegration({
+          userId: req.session.userId!,
+          integrationType: "google_docs",
+          config,
+          isEnabled: true
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Google Docs integration configured successfully"
+      });
+    } catch (error) {
+      console.error("Configure Google Docs integration error:", error);
+      res.status(500).json({ message: "Failed to configure Google Docs integration" });
+    }
+  });
+
+  app.post("/api/integrations/google-docs/toggle", requireAuth, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      
+      const integration = await storage.getUserIntegration(req.session.userId!, "google_docs");
+      
+      if (!integration) {
+        return res.status(404).json({ message: "Google Docs integration not found" });
+      }
+
+      await storage.updateUserIntegration(req.session.userId!, "google_docs", {
+        isEnabled: enabled
+      });
+
+      res.json({
+        enabled,
+        message: enabled ? "Google Docs integration enabled" : "Google Docs integration disabled"
+      });
+    } catch (error) {
+      console.error("Toggle Google Docs integration error:", error);
+      res.status(500).json({ message: "Failed to toggle Google Docs integration" });
+    }
+  });
+
+  app.post("/api/integrations/google-docs/sync-all", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "google_docs");
+      
+      if (!integration || !integration.isEnabled) {
+        return res.status(400).json({ message: "Google Docs integration not enabled" });
+      }
+
+      const result = await syncAllUserEntriesToGoogleDocs(req.session.userId!);
+      
+      res.json({ 
+        message: `Sync completed: ${result.success} successful, ${result.failed} failed`,
+        successCount: result.success,
+        failedCount: result.failed
+      });
+    } catch (error) {
+      console.error("Bulk Google Docs sync error:", error);
       res.status(500).json({ 
         message: "Bulk sync failed. Please try again." 
       });
