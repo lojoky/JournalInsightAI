@@ -1,26 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare, Edit, Trash2, Save, X } from "lucide-react";
+import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare } from "lucide-react";
 import { Link } from "wouter";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function EntryDetail() {
   const [match, params] = useRoute("/entry/:id");
-  const [, setLocation] = useLocation();
   const entryId = params?.id;
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedText, setEditedText] = useState("");
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['/api/journal-entries', entryId],
@@ -30,71 +19,6 @@ export default function EntryDetail() {
     },
     enabled: !!entryId
   });
-
-  // Update transcription mutation
-  const updateTranscriptionMutation = useMutation({
-    mutationFn: async (transcribedText: string) => {
-      const response = await apiRequest('PATCH', `/api/journal-entries/${entryId}/transcription`, {
-        transcribedText
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries', entryId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
-      setIsEditing(false);
-      toast({
-        title: "Transcription updated",
-        description: "Your changes have been saved successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update failed",
-        description: "Failed to update transcription. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Delete entry mutation
-  const deleteEntryMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('DELETE', `/api/journal-entries/${entryId}`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
-      setLocation('/entries');
-      toast({
-        title: "Entry deleted",
-        description: "Your journal entry has been deleted successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Delete failed",
-        description: "Failed to delete entry. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleEditClick = () => {
-    setEditedText(entry?.transcribedText || "");
-    setIsEditing(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (editedText.trim()) {
-      updateTranscriptionMutation.mutate(editedText);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditedText("");
-  };
 
   if (isLoading) {
     return (
@@ -148,54 +72,12 @@ export default function EntryDetail() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEditClick}
-                disabled={updateTranscriptionMutation.isPending}
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={deleteEntryMutation.isPending}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Entry</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this journal entry? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => deleteEntryMutation.mutate()}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              
-              <Badge 
-                variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
-                className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
-              >
-                {entry.processingStatus}
-              </Badge>
-            </div>
+            <Badge 
+              variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
+              className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
+            >
+              {entry.processingStatus}
+            </Badge>
           </div>
         </div>
       </div>
@@ -237,41 +119,11 @@ export default function EntryDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isEditing ? (
-                <div className="space-y-4">
-                  <Textarea
-                    value={editedText}
-                    onChange={(e) => setEditedText(e.target.value)}
-                    className="min-h-[200px] bg-white"
-                    placeholder="Edit the transcribed text..."
-                  />
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelEdit}
-                      disabled={updateTranscriptionMutation.isPending}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveEdit}
-                      disabled={updateTranscriptionMutation.isPending || !editedText.trim()}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {updateTranscriptionMutation.isPending ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {entry.transcribedText}
-                  </p>
-                </div>
-              )}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {entry.transcribedText}
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}

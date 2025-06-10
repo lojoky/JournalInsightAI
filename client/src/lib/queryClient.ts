@@ -14,27 +14,9 @@ export async function apiRequest(
 ): Promise<Response> {
   const isFormData = data instanceof FormData;
   
-  // Get headers for authentication
-  const headers: Record<string, string> = data && !isFormData ? { "Content-Type": "application/json" } : {};
-  
-  // Add Firebase auth token if available and on deployed domain
-  const isDeployedDomain = window.location.hostname.includes('replit.app');
-  if (isDeployedDomain) {
-    try {
-      const { auth } = await import('@/lib/firebase');
-      const user = auth.currentUser;
-      if (user) {
-        const idToken = await user.getIdToken();
-        headers['Authorization'] = `Bearer ${idToken}`;
-      }
-    } catch (error) {
-      console.warn('Could not get Firebase auth token:', error);
-    }
-  }
-  
   const res = await fetch(url, {
     method,
-    headers,
+    headers: data && !isFormData ? { "Content-Type": "application/json" } : {},
     body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     credentials: "include",
   });
@@ -49,26 +31,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Get headers for authentication
-    const headers: Record<string, string> = {};
-    
-    // Add Firebase auth token if available and on deployed domain
-    const isDeployedDomain = window.location.hostname.includes('replit.app');
-    if (isDeployedDomain) {
-      try {
-        const { auth } = await import('@/lib/firebase');
-        const user = auth.currentUser;
-        if (user) {
-          const idToken = await user.getIdToken();
-          headers['Authorization'] = `Bearer ${idToken}`;
-        }
-      } catch (error) {
-        console.warn('Could not get Firebase auth token for query:', error);
-      }
-    }
-    
     const res = await fetch(queryKey[0] as string, {
-      headers,
       credentials: "include",
     });
 

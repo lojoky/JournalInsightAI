@@ -11,8 +11,6 @@ import {
 } from "@shared/schema";
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import { retryFailedEntries } from "./retry-processing";
-import { setupAuth, isAuthenticated } from "./replitAuth";
-
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -65,44 +63,19 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Serve uploaded images statically for Notion cover images
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-  // Initialize Firebase Admin if configured
-  if (process.env.VITE_FIREBASE_PROJECT_ID) {
-    const { initializeFirebaseAdmin, authenticateFirebase } = await import("./firebaseAuth");
-    initializeFirebaseAdmin();
-    app.use(authenticateFirebase);
-  }
-
-  // Initialize Notion if configured
-  if (process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL) {
-    const { initializeNotion } = await import("./notion");
-    const notionInitialized = initializeNotion(
-      process.env.NOTION_INTEGRATION_SECRET,
-      process.env.NOTION_PAGE_URL
-    );
-    if (notionInitialized) {
-      console.log("Notion integration initialized successfully");
-    } else {
-      console.log("Failed to initialize Notion integration");
+  // Create default user for demo purposes
+  let defaultUser: any = null;
+  try {
+    defaultUser = await storage.getUserByUsername("demo");
+    if (!defaultUser) {
+      defaultUser = await storage.createUser({
+        username: "demo",
+        password: "demo"
+      });
     }
+  } catch (error) {
+    console.error("Error creating default user:", error);
   }
-
-  // Setup authentication
-  await setupAuth(app);
-
-  // Authentication routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
 
   // Create default tags if they don't exist
   const defaultTags = [
@@ -125,21 +98,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Get all journal entries for authenticated user
-  app.get("/api/journal-entries", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const entries = await storage.getJournalEntriesByUser(userId, limit);
-      res.json(entries);
-    } catch (error) {
-      console.error("Get journal entries error:", error);
-      res.status(500).json({ message: "Failed to fetch journal entries" });
-    }
-  });
-
   // Upload journal entry image
-  app.post("/api/journal-entries/upload", isAuthenticated, upload.single('image'), async (req: any, res) => {
+  app.post("/api/journal-entries/upload", upload.single('image'), async (req, res) => {
     try {
       console.log("Upload request received:");
       console.log("- Files:", req.file);
@@ -151,9 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No image file provided" });
       }
 
-      const authenticatedUserId = req.user.claims.sub;
-      if (!authenticatedUserId) {
-        return res.status(401).json({ message: "User not authenticated" });
+      if (!defaultUser) {
+        return res.status(500).json({ message: "Default user not found" });
       }
 
       const { title = "Untitled Entry" } = req.body;
@@ -198,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create journal entry with pending status
       const entry = await storage.createJournalEntry({
-        userId: authenticatedUserId,
+        userId: defaultUser.id,
         title,
         originalImageUrl: `/uploads/${req.file.filename}`,
         processingStatus: "pending"
@@ -343,48 +302,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: "completed"
       });
 
-      // Sync to Notion if user has configured it
-      try {
-        const updatedEntry = await storage.getJournalEntry(entryId);
-        if (updatedEntry && updatedEntry.transcribedText) {
-          const user = await storage.getUser(updatedEntry.userId);
-          
-          if (user && user.notionIntegrationSecret && user.notionPageUrl) {
-            const { syncJournalToNotion } = await import("./notion");
-            const tagNames = updatedEntry.tags?.map(tag => tag.name) || [];
-            
-            // Create a publicly accessible image URL
-            const baseUrl = process.env.REPL_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` || `http://localhost:5000`;
-            const publicImageUrl = `${baseUrl}${updatedEntry.originalImageUrl}`;
-            
-            // Create summary from AI analysis - ensure it's always a string
-            const summary: string = analysis.themes.length > 0 && analysis.themes[0].description
-              ? analysis.themes[0].description 
-              : `Journal entry with ${analysis.themes.length} themes identified. Sentiment: ${updatedEntry.sentimentAnalysis?.overallSentiment || 'Unknown'}`;
-            
-            const notionData = {
-              title: updatedEntry.title,
-              content: updatedEntry.transcribedText,
-              summary,
-              imageUrl: publicImageUrl,
-              tags: tagNames,
-              sentiment: updatedEntry.sentimentAnalysis?.overallSentiment,
-              date: new Date(updatedEntry.createdAt).toISOString().split('T')[0]
-            };
-            
-            await syncJournalToNotion(
-              user.notionIntegrationSecret,
-              user.notionPageUrl,
-              notionData
-            );
-            console.log(`Journal entry ${entryId} synced to user's personal Notion successfully`);
-          }
-        }
-      } catch (notionError) {
-        console.error("Failed to sync to user's Notion:", notionError);
-        // Don't fail the main request if Notion sync fails
-      }
-
       res.json({
         themes,
         sentiment: sentimentData,
@@ -407,7 +324,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get journal entries
+  app.get("/api/journal-entries", async (req, res) => {
+    try {
+      if (!defaultUser) {
+        return res.status(500).json({ message: "Default user not found" });
+      }
 
+      const limit = parseInt(req.query.limit as string) || 10;
+      const entries = await storage.getJournalEntriesByUser(defaultUser.id, limit);
+      
+      res.json(entries);
+    } catch (error) {
+      console.error("Get entries error:", error);
+      res.status(500).json({ message: "Failed to fetch journal entries" });
+    }
+  });
 
   // Get specific journal entry
   app.get("/api/journal-entries/:id", async (req, res) => {
@@ -423,56 +355,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get entry error:", error);
       res.status(500).json({ message: "Failed to fetch journal entry" });
-    }
-  });
-
-  // Update transcription for journal entry
-  app.patch("/api/journal-entries/:id/transcription", isAuthenticated, async (req, res) => {
-    try {
-      const entryId = parseInt(req.params.id);
-      const { transcribedText } = req.body;
-      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
-
-      if (!transcribedText || typeof transcribedText !== 'string') {
-        return res.status(400).json({ message: "Valid transcribed text is required" });
-      }
-
-      // Verify the entry belongs to the user
-      const entry = await storage.getJournalEntry(entryId);
-      if (!entry || entry.userId !== userId) {
-        return res.status(404).json({ message: "Entry not found or access denied" });
-      }
-
-      const updatedEntry = await storage.updateJournalEntry(entryId, {
-        transcribedText
-      });
-
-      res.json(updatedEntry);
-    } catch (error) {
-      console.error("Update transcription error:", error);
-      res.status(500).json({ message: "Failed to update transcription" });
-    }
-  });
-
-  // Delete journal entry
-  app.delete("/api/journal-entries/:id", isAuthenticated, async (req, res) => {
-    try {
-      const entryId = parseInt(req.params.id);
-      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
-
-      // Verify the entry belongs to the user
-      const entry = await storage.getJournalEntry(entryId);
-      if (!entry || entry.userId !== userId) {
-        return res.status(404).json({ message: "Entry not found or access denied" });
-      }
-
-      // Delete the entry
-      await storage.deleteJournalEntry(entryId);
-
-      res.json({ message: "Entry deleted successfully" });
-    } catch (error) {
-      console.error("Delete entry error:", error);
-      res.status(500).json({ message: "Failed to delete entry" });
     }
   });
 
@@ -519,47 +401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user Notion settings
-  app.post("/api/user/notion-settings", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = (req as any).user?.id || (req as any).user?.claims?.sub;
-      const { notionIntegrationSecret, notionPageUrl } = req.body;
-      
-      console.log('Notion settings update request:', {
-        userId,
-        hasSecret: !!notionIntegrationSecret,
-        hasPageUrl: !!notionPageUrl,
-        userObject: JSON.stringify((req as any).user, null, 2)
-      });
-      
-      if (!userId) {
-        console.error('No userId found in request');
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      
-      if (!notionIntegrationSecret || !notionPageUrl) {
-        console.error('Missing required fields:', { notionIntegrationSecret: !!notionIntegrationSecret, notionPageUrl: !!notionPageUrl });
-        return res.status(400).json({ message: "Notion integration secret and page URL are required" });
-      }
-      
-      // Update user with Notion credentials
-      console.log('Attempting to upsert user with Notion settings...');
-      await storage.upsertUser({
-        id: userId,
-        notionIntegrationSecret,
-        notionPageUrl,
-      });
-      
-      console.log('Notion settings updated successfully for user:', userId);
-      res.json({ message: "Notion settings updated successfully" });
-    } catch (error) {
-      console.error("Update Notion settings error:", error);
-      res.status(500).json({ message: "Failed to update Notion settings", error: (error as Error).message });
-    }
-  });
-
   // Retry failed entries
-  app.post("/api/retry-failed-entries", isAuthenticated, async (req, res) => {
+  app.post("/api/retry-failed-entries", async (req, res) => {
     try {
       console.log("Starting retry process for failed entries...");
       const result = await retryFailedEntries();

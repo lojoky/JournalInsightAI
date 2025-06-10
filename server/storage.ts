@@ -6,7 +6,7 @@ import {
   entryTags, 
   sentimentAnalysis,
   type User, 
-  type UpsertUser,
+  type InsertUser,
   type JournalEntry,
   type InsertJournalEntry,
   type Theme,
@@ -23,16 +23,16 @@ import { db } from "./db";
 import { eq, desc, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
-  // User methods for Replit Auth
-  getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
 
   // Journal entry methods
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
   updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
   getJournalEntry(id: number): Promise<JournalEntryWithDetails | undefined>;
-  getJournalEntriesByUser(userId: string, limit?: number): Promise<JournalEntryWithDetails[]>;
-  deleteJournalEntry(id: number): Promise<void>;
+  getJournalEntriesByUser(userId: number, limit?: number): Promise<JournalEntryWithDetails[]>;
 
   // Theme methods
   createTheme(theme: InsertTheme): Promise<Theme>;
@@ -57,22 +57,20 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
+      .values(insertUser)
       .returning();
     return user;
   }
@@ -112,7 +110,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getJournalEntriesByUser(userId: string, limit = 10): Promise<JournalEntryWithDetails[]> {
+  async getJournalEntriesByUser(userId: number, limit = 10): Promise<JournalEntryWithDetails[]> {
     console.log(`Fetching journal entries for user ${userId} with limit ${limit}`);
     
     const entries = await db
@@ -260,18 +258,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(journalEntries.createdAt));
     
     return entries;
-  }
-
-  async deleteJournalEntry(id: number): Promise<void> {
-    await db.transaction(async (tx) => {
-      // Delete related data first due to foreign key constraints
-      await tx.delete(entryTags).where(eq(entryTags.entryId, id));
-      await tx.delete(themes).where(eq(themes.entryId, id));
-      await tx.delete(sentimentAnalysis).where(eq(sentimentAnalysis.entryId, id));
-      
-      // Finally delete the journal entry
-      await tx.delete(journalEntries).where(eq(journalEntries.id, id));
-    });
   }
 }
 
