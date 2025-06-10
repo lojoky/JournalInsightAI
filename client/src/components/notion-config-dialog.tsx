@@ -75,7 +75,12 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
       console.log('Making request to /api/user/notion-settings with headers:', headers);
       console.log('Request body:', data);
 
-      const response = await fetch("/api/user/notion-settings", {
+      // Determine the correct base URL for the request
+      const baseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : window.location.origin;
+      
+      const response = await fetch(`${baseUrl}/api/user/notion-settings`, {
         method: "POST",
         headers,
         credentials: "include",
