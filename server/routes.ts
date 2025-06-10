@@ -800,10 +800,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ enabled: false, configured: false });
       }
 
+      // Get the user's Google Doc URL if they have any entries synced
+      let documentUrl = null;
+      if (integration.isEnabled) {
+        const googleDocs = await storage.getGoogleDocsByUser(req.session.userId!);
+        if (googleDocs.length > 0) {
+          documentUrl = googleDocs[0].documentUrl;
+        }
+      }
+
       res.json({
         enabled: integration.isEnabled,
         configured: !!integration.config,
-        config: integration.config
+        config: integration.config,
+        documentUrl
       });
     } catch (error) {
       console.error("Get Google Docs integration error:", error);

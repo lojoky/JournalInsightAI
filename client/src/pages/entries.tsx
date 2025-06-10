@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import ExportDialog from "@/components/export-dialog";
+import GoogleDocLink from "@/components/google-doc-link";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {

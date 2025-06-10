@@ -263,15 +263,37 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
                       {googleDocsConfig.config?.folderName || "Journal Entries"}
                     </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => syncAllMutation.mutate()}
-                    disabled={syncAllMutation.isPending || !googleDocsConfig.enabled}
-                    className="w-full"
-                  >
-                    {syncAllMutation.isPending ? "Syncing..." : "Sync All Entries"}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncAllMutation.mutate()}
+                      disabled={syncAllMutation.isPending || !googleDocsConfig.enabled}
+                      className="w-full"
+                    >
+                      {syncAllMutation.isPending ? "Syncing..." : "Sync All Entries"}
+                    </Button>
+                    
+                    {googleDocsConfig.config?.documentUrl && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        asChild
+                        className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white"
+                      >
+                        <a
+                          href={googleDocsConfig.config.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Google Doc
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
