@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
+import { apiRequest } from "@/lib/queryClient";
 
 
 const notionConfigSchema = z.object({
@@ -53,49 +54,9 @@ export default function NotionConfigDialog({ children }: NotionConfigDialogProps
 
   const updateNotionSettings = useMutation({
     mutationFn: async (data: NotionConfigForm) => {
-      // Get Firebase auth token if available
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      // Check if we have a Firebase user and get the auth token
-      try {
-        const user = auth.currentUser;
-        if (user) {
-          const token = await user.getIdToken();
-          headers.Authorization = `Bearer ${token}`;
-          console.log('Adding Firebase auth token to request');
-        } else {
-          console.log('No Firebase user found, using session auth');
-        }
-      } catch (authError) {
-        console.error('Auth token error:', authError);
-      }
-
-      console.log('Making request to /api/user/notion-settings with headers:', headers);
-      console.log('Request body:', data);
-
-      // Determine the correct base URL for the request
-      const baseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : window.location.origin;
+      console.log('Making request to /api/user/notion-settings with data:', data);
       
-      const response = await fetch(`${baseUrl}/api/user/notion-settings`, {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.message || "Failed to update Notion settings");
-      }
-
+      const response = await apiRequest("POST", "/api/user/notion-settings", data);
       return response.json();
     },
     onSuccess: () => {
