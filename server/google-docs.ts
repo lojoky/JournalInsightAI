@@ -6,7 +6,7 @@ export function createGoogleClient(accessToken: string, refreshToken: string) {
   const oauth2Client = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    'urn:ietf:wg:oauth:2.0:oob' // For installed applications
+    'http://localhost:5000/api/auth/google/callback' // For web applications
   );
   
   oauth2Client.setCredentials({
@@ -311,7 +311,7 @@ export async function getAuthUrl(clientId: string, clientSecret: string) {
   const oauth2Client = new OAuth2Client(
     clientId,
     clientSecret,
-    'urn:ietf:wg:oauth:2.0:oob'
+    'http://localhost:5000/api/auth/google/callback'
   );
   
   const scopes = [
@@ -336,7 +336,7 @@ export async function exchangeCodeForTokens(
   const oauth2Client = new OAuth2Client(
     clientId,
     clientSecret,
-    'urn:ietf:wg:oauth:2.0:oob'
+    'http://localhost:5000/api/auth/google/callback'
   );
   
   const { tokens } = await oauth2Client.getToken(code);

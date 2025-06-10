@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -185,6 +185,23 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
     getAuthUrlMutation.mutate();
   };
 
+  // Listen for OAuth callback messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'GOOGLE_AUTH_SUCCESS' && event.data.code) {
+        form.setValue('authCode', event.data.code);
+        setAuthUrl(null);
+        toast({
+          title: "Authorization Successful",
+          description: "You can now complete the configuration below",
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [form, toast]);
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -281,15 +298,13 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
                   <div className="space-y-4">
                     <div className="p-4 bg-blue-50 rounded-lg space-y-2">
                       <p className="text-sm font-medium">Step 1: Authorize Access</p>
-                      <a
-                        href={authUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-sm"
+                      <button
+                        onClick={() => window.open(authUrl, 'google-auth', 'width=500,height=600')}
+                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-sm bg-blue-100 px-3 py-2 rounded border border-blue-200 hover:bg-blue-200 transition-colors"
                       >
-                        Click here to authorize Google Docs access
+                        Authorize Google Docs Access
                         <ExternalLink className="h-3 w-3" />
-                      </a>
+                      </button>
                     </div>
                     
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

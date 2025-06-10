@@ -764,6 +764,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth callback route
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code) {
+        return res.status(400).send("Missing authorization code");
+      }
+
+      // Store the code in a temporary session for the configuration step
+      if (req.session) {
+        req.session.googleAuthCode = code as string;
+      }
+
+      // Redirect back to the app with success indication
+      res.send(`
+        <html>
+          <head><title>Google Authorization Complete</title></head>
+          <body>
+            <h1>Authorization Successful!</h1>
+            <p>You can close this window and return to the application to complete the setup.</p>
+            <script>
+              // Post message to parent window if opened in popup
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', code: '${code}' }, '*');
+                window.close();
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Google OAuth callback error:", error);
+      res.status(500).send("Authorization failed");
+    }
+  });
+
   app.post("/api/integrations/google-docs/configure", requireAuth, async (req, res) => {
     try {
       const { authCode, folderName } = req.body;
