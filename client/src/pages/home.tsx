@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Brain, User, Menu, Download } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Brain, User, Menu, Download, LogOut } from "lucide-react";
 import FileUpload from "@/components/file-upload";
 import ProcessingStatus from "@/components/processing-status";
 import TranscriptionResults from "@/components/transcription-results";
@@ -10,6 +11,7 @@ import TagSystem from "@/components/tag-system";
 import RecentEntries from "@/components/recent-entries";
 import ExportDialog from "@/components/export-dialog";
 import { useJournalProcessing } from "@/hooks/use-journal-processing";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export default function Home() {
   const {
