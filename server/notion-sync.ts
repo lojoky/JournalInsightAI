@@ -78,12 +78,24 @@ Response (just the date or "none"):`;
       }
     }
 
+    // Construct the full image URL for Notion
+    let imageUrl: string | undefined;
+    if (entry.originalImageUrl) {
+      // Get the current request protocol and host
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : process.env.PUBLIC_URL || 'http://localhost:5000';
+      
+      imageUrl = `${baseUrl}${entry.originalImageUrl}`;
+      console.log(`Constructed image URL for Notion: ${imageUrl}`);
+    }
+
     const entryData = {
       title: entry.title || "Untitled Entry",
       date: entryDate,
       tags,
       content: entry.transcribedText || "",
-      imageUrl: entry.originalImageUrl ? `${process.env.PUBLIC_URL || 'http://localhost:5000'}${entry.originalImageUrl}` : undefined,
+      imageUrl,
       processingStatus: entry.processingStatus || "pending"
     };
 

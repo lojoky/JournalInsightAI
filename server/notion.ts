@@ -219,24 +219,55 @@ export async function addJournalEntryToNotion(
 
   // Add image if available
   if (entry.imageUrl) {
-    blocks.push({
-      object: 'block',
-      type: 'image',
-      image: {
-        type: 'external',
-        external: {
-          url: entry.imageUrl
+    console.log(`Adding image block to Notion page: ${entry.imageUrl}`);
+    try {
+      blocks.push({
+        object: 'block',
+        type: 'image',
+        image: {
+          type: 'external',
+          external: {
+            url: entry.imageUrl
+          },
+          caption: [
+            {
+              type: 'text',
+              text: {
+                content: 'Journal Entry Photo'
+              }
+            }
+          ]
         }
-      }
-    });
+      });
+    } catch (imageError) {
+      console.error(`Failed to add image block: ${imageError}`);
+    }
   }
 
   // Add blocks to the page if we have any content
   if (blocks.length > 0) {
-    await notion.blocks.children.append({
-      block_id: page.id,
-      children: blocks
-    });
+    try {
+      console.log(`Adding ${blocks.length} blocks to Notion page ${page.id}`);
+      await notion.blocks.children.append({
+        block_id: page.id,
+        children: blocks
+      });
+      console.log(`Successfully added blocks to Notion page`);
+    } catch (blockError) {
+      console.error(`Failed to add blocks to Notion page:`, blockError);
+      // Try to add blocks one by one to identify which one fails
+      for (let i = 0; i < blocks.length; i++) {
+        try {
+          await notion.blocks.children.append({
+            block_id: page.id,
+            children: [blocks[i]]
+          });
+          console.log(`Successfully added block ${i + 1}`);
+        } catch (individualBlockError) {
+          console.error(`Failed to add block ${i + 1}:`, individualBlockError);
+        }
+      }
+    }
   }
 
   return page;
