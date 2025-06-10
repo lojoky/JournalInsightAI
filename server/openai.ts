@@ -19,6 +19,7 @@ interface JournalAnalysisResult {
   tags: string[];
   reflectionQuestions: string[];
   emotionalTone: string;
+  entryDate?: string; // ISO date string if found
 }
 
 interface SentimentResult {
@@ -37,6 +38,7 @@ Please analyze the following journal entry and provide insights in JSON format. 
 3. Relevant tags for categorization (faith, career, relationships, gratitude, reflection, personal-growth, family, decisions, mindfulness, etc.)
 4. Thoughtful reflection questions based on the content
 5. Overall emotional tone
+6. The actual date mentioned in the journal entry (if any)
 
 Journal Entry:
 "${transcribedText}"
@@ -57,7 +59,8 @@ Please respond with JSON in this exact format:
     "Thoughtful question 2?",
     "Thoughtful question 3?"
   ],
-  "emotionalTone": "positive/neutral/reflective/concerned"
+  "emotionalTone": "positive/neutral/reflective/concerned",
+  "entryDate": "2024-01-15" // Only include if a specific date is mentioned in the entry, format as YYYY-MM-DD
 }
 `;
 

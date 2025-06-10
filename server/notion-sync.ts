@@ -7,6 +7,9 @@ import {
   findDatabaseByTitle 
 } from "./notion";
 import type { JournalEntryWithDetails } from "@shared/schema";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): Promise<void> {
   try {
@@ -40,9 +43,46 @@ export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): 
 
     // Prepare entry data
     const tags = entry.tags.map(tag => tag.name);
+    
+    // Try to extract date from journal content using AI analysis
+    let entryDate = entry.createdAt.toISOString().split('T')[0]; // Default to creation date
+    
+    // Check if we have transcribed text to analyze for date
+    if (entry.transcribedText) {
+      try {
+        const dateExtractionPrompt = `
+Extract the date mentioned in this journal entry. Look for explicit dates like "January 15", "Jan 15th", "1/15", "15th", etc.
+Return only the date in YYYY-MM-DD format, or "none" if no specific date is mentioned.
+
+Journal text: "${entry.transcribedText.substring(0, 500)}"
+
+Response (just the date or "none"):`;
+
+        const dateResponse = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: dateExtractionPrompt }],
+          max_tokens: 50,
+          temperature: 0
+        });
+
+        const extractedDate = dateResponse.choices[0]?.message?.content?.trim();
+        
+        // Validate and use extracted date if it's in correct format
+        if (extractedDate && extractedDate !== "none" && /^\d{4}-\d{2}-\d{2}$/.test(extractedDate)) {
+          const parsedDate = new Date(extractedDate);
+          if (!isNaN(parsedDate.getTime())) {
+            entryDate = extractedDate;
+            console.log(`Extracted date ${extractedDate} from journal entry ${entry.id}`);
+          }
+        }
+      } catch (dateError) {
+        console.log(`Failed to extract date from entry ${entry.id}, using creation date`);
+      }
+    }
+
     const entryData = {
       title: entry.title || "Untitled Entry",
-      date: entry.createdAt.toISOString().split('T')[0], // YYYY-MM-DD format
+      date: entryDate,
       tags,
       content: entry.transcribedText || "",
       imageUrl: entry.originalImageUrl ? `${process.env.PUBLIC_URL || 'http://localhost:5000'}${entry.originalImageUrl}` : undefined,
