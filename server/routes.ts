@@ -995,8 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Auth code preview:", authCode.substring(0, 20) + "...");
       
       const tokens = await exchangeCodeForTokens(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_CLIENT_ID!,
+        process.env.GOOGLE_CLIENT_SECRET!,
         authCode
       );
 

@@ -385,7 +385,11 @@ export async function exchangeCodeForTokens(
     if (error?.message?.includes('invalid_grant')) {
       throw new Error('Authorization code expired or already used. Please restart the authorization process.');
     } else if (error?.message?.includes('redirect_uri_mismatch')) {
-      throw new Error('OAuth redirect URI mismatch. The redirect URI in your Google Cloud Console must match the current domain.');
+      const baseUrl = process.env.REPLIT_DOMAINS ? 
+        `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
+        'http://localhost:5000';
+      const correctRedirectUri = `${baseUrl}/api/auth/google/callback`;
+      throw new Error(`OAuth redirect URI mismatch. Add this exact URI to your Google Cloud Console: ${correctRedirectUri}`);
     } else {
       throw new Error(`Google OAuth token exchange failed: ${error?.message || 'Unknown error'}`);
     }
