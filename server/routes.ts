@@ -821,17 +821,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google OAuth diagnostics endpoint
-  app.get("/api/integrations/google-docs/diagnostics", requireAuth, async (req, res) => {
+  // Google OAuth diagnostics endpoint (public for debugging)
+  app.get("/api/google-oauth-diagnostics", async (req, res) => {
     try {
+      console.log("Diagnostics endpoint hit");
+      res.setHeader('Content-Type', 'application/json');
+      
       const diagnostics = {
         hasClientId: !!process.env.GOOGLE_CLIENT_ID,
         hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
         currentDomain: req.get('host'),
         expectedRedirectUri: `${req.protocol}://${req.get('host')}/api/auth/google/callback`,
         replitDomains: process.env.REPLIT_DOMAINS || null,
+        timestamp: new Date().toISOString(),
       };
       
+      console.log("Google OAuth diagnostics:", diagnostics);
       res.json(diagnostics);
     } catch (error) {
       console.error("Google diagnostics error:", error);
@@ -960,35 +965,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/integrations/google-docs/configure", requireAuth, async (req, res) => {
     try {
-      console.log("Configuring Google Docs integration for user:", req.session.userId);
+      console.log("=== GOOGLE DOCS CONFIGURATION ATTEMPT ===");
+      console.log("User ID:", req.session.userId);
+      console.log("Timestamp:", new Date().toISOString());
+      
       const { authCode, folderName } = req.body;
-      console.log("Request body:", { authCode: authCode ? "present" : "missing", folderName });
+      console.log("Request data:", { 
+        hasAuthCode: !!authCode, 
+        authCodeLength: authCode?.length || 0,
+        folderName: folderName || "default" 
+      });
+
+      // Validate environment variables
+      const hasClientId = !!process.env.GOOGLE_CLIENT_ID;
+      const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET;
+      console.log("Environment check:", { hasClientId, hasClientSecret });
 
       if (!authCode) {
-        console.error("Missing authorization code");
+        console.error("ERROR: Missing authorization code");
         return res.status(400).json({ message: "Authorization code is required" });
       }
 
-      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        console.error("Missing Google OAuth credentials");
-        return res.status(500).json({ message: "Google OAuth credentials not configured" });
+      if (!hasClientId || !hasClientSecret) {
+        console.error("ERROR: Missing Google OAuth credentials in environment");
+        return res.status(500).json({ message: "Google OAuth credentials not configured on server" });
       }
 
-      console.log("Exchanging authorization code for tokens...");
+      console.log("Starting token exchange...");
+      console.log("Auth code preview:", authCode.substring(0, 20) + "...");
+      
       const tokens = await exchangeCodeForTokens(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
         authCode
       );
 
-      console.log("Token exchange result:", { 
+      console.log("Token exchange completed:", { 
         hasAccessToken: !!tokens.access_token, 
-        hasRefreshToken: !!tokens.refresh_token 
+        hasRefreshToken: !!tokens.refresh_token,
+        tokenType: tokens.token_type,
+        scope: tokens.scope
       });
 
       if (!tokens.access_token || !tokens.refresh_token) {
-        console.error("Token exchange failed - missing tokens");
-        return res.status(400).json({ message: "Failed to exchange authorization code for tokens. Please try the authorization process again." });
+        console.error("ERROR: Token exchange succeeded but tokens are missing");
+        return res.status(400).json({ 
+          message: "Token exchange failed - received incomplete tokens. Please restart the authorization process." 
+        });
       }
 
       const config = {
@@ -997,17 +1020,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderName: folderName || "Journal Entries"
       };
 
-      console.log("Checking for existing integration...");
+      console.log("Storing integration in database...");
       const existingIntegration = await storage.getUserIntegration(req.session.userId!, "google_docs");
 
       if (existingIntegration) {
-        console.log("Updating existing integration");
+        console.log("Updating existing Google Docs integration");
         await storage.updateUserIntegration(req.session.userId!, "google_docs", {
           config,
           isEnabled: true
         });
       } else {
-        console.log("Creating new integration");
+        console.log("Creating new Google Docs integration");
         await storage.createUserIntegration({
           userId: req.session.userId!,
           integrationType: "google_docs",
@@ -1016,28 +1039,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log("Google Docs integration configured successfully");
+      console.log("SUCCESS: Google Docs integration configured successfully");
+      console.log("=== END CONFIGURATION ===");
+      
       res.json({
         success: true,
         message: "Google Docs integration configured successfully"
       });
     } catch (error: any) {
-      console.error("Configure Google Docs integration error:", error);
-      console.error("Error details:", {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack
-      });
+      console.error("=== GOOGLE DOCS CONFIGURATION FAILED ===");
+      console.error("Error type:", error?.constructor?.name);
+      console.error("Error message:", error?.message);
+      console.error("Error code:", error?.code);
+      console.error("Error response:", error?.response?.data);
+      console.error("Full error:", error);
+      console.error("=== END ERROR ===");
       
-      // Provide more specific error messages
+      // Provide specific error messages based on error type
       let errorMessage = "Failed to configure Google Docs integration";
+      
       if (error?.message?.includes("invalid_grant")) {
-        errorMessage = "Authorization code expired or invalid. Please try the authorization process again.";
+        errorMessage = "Authorization code expired or already used. Please restart the authorization process.";
       } else if (error?.message?.includes("redirect_uri_mismatch")) {
-        errorMessage = "OAuth redirect URI mismatch. Please contact support.";
+        errorMessage = "OAuth redirect URI configuration error. The redirect URI must be configured in Google Cloud Console.";
+      } else if (error?.message?.includes("invalid_client")) {
+        errorMessage = "Invalid Google OAuth client credentials. Please check the client ID and secret configuration.";
+      } else if (error?.code === "ENOTFOUND" || error?.code === "ECONNREFUSED") {
+        errorMessage = "Network error connecting to Google's servers. Please check your internet connection and try again.";
       }
       
-      res.status(500).json({ message: errorMessage });
+      res.status(500).json({ 
+        message: errorMessage,
+        errorType: error?.constructor?.name,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
