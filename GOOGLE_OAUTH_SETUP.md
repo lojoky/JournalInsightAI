@@ -7,7 +7,7 @@ The Google Docs integration is failing with a 500 error due to a redirect URI mi
 Add this exact redirect URI to your Google Cloud Console:
 
 ```
-https://50ef1d15-2950-4b02-aa94-9c679aaebc13-00-kzw6ayjwkh0z.worf.replit.dev/api/auth/google/callback
+https://journal-ai-insights.replit.app/api/auth/google/callback
 ```
 
 ## Steps to Fix:

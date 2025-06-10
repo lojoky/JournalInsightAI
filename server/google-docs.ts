@@ -308,11 +308,8 @@ export async function updateJournalDocument(
 }
 
 export async function getAuthUrl(clientId: string, clientSecret: string) {
-  // Get the current host from environment or default to localhost
-  const baseUrl = process.env.REPLIT_DOMAINS ? 
-    `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
-    'http://localhost:5000';
-  
+  // For deployed Replit apps, use the public domain
+  const baseUrl = 'https://journal-ai-insights.replit.app';
   const redirectUri = `${baseUrl}/api/auth/google/callback`;
   
   const oauth2Client = new OAuth2Client(
@@ -342,11 +339,8 @@ export async function exchangeCodeForTokens(
   code: string
 ) {
   try {
-    // Get the current host from environment or default to localhost
-    const baseUrl = process.env.REPLIT_DOMAINS ? 
-      `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
-      'http://localhost:5000';
-    
+    // For deployed Replit apps, use the public domain
+    const baseUrl = 'https://journal-ai-insights.replit.app';
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
     
     console.log('Token exchange parameters:', {
@@ -385,10 +379,7 @@ export async function exchangeCodeForTokens(
     if (error?.message?.includes('invalid_grant')) {
       throw new Error('Authorization code expired or already used. Please restart the authorization process.');
     } else if (error?.message?.includes('redirect_uri_mismatch')) {
-      const baseUrl = process.env.REPLIT_DOMAINS ? 
-        `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
-        'http://localhost:5000';
-      const correctRedirectUri = `${baseUrl}/api/auth/google/callback`;
+      const correctRedirectUri = 'https://journal-ai-insights.replit.app/api/auth/google/callback';
       throw new Error(`OAuth redirect URI mismatch. Add this exact URI to your Google Cloud Console: ${correctRedirectUri}`);
     } else {
       throw new Error(`Google OAuth token exchange failed: ${error?.message || 'Unknown error'}`);
