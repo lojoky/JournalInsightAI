@@ -308,10 +308,17 @@ export async function updateJournalDocument(
 }
 
 export async function getAuthUrl(clientId: string, clientSecret: string) {
+  // Get the current host from environment or default to localhost
+  const baseUrl = process.env.REPLIT_DOMAINS ? 
+    `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
+    'http://localhost:5000';
+  
+  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  
   const oauth2Client = new OAuth2Client(
     clientId,
     clientSecret,
-    'http://localhost:5000/api/auth/google/callback'
+    redirectUri
   );
   
   const scopes = [
@@ -325,6 +332,7 @@ export async function getAuthUrl(clientId: string, clientSecret: string) {
     prompt: 'consent'
   });
   
+  console.log('Generated Google auth URL with redirect:', redirectUri);
   return url;
 }
 
@@ -333,12 +341,20 @@ export async function exchangeCodeForTokens(
   clientSecret: string,
   code: string
 ) {
+  // Get the current host from environment or default to localhost
+  const baseUrl = process.env.REPLIT_DOMAINS ? 
+    `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
+    'http://localhost:5000';
+  
+  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  
   const oauth2Client = new OAuth2Client(
     clientId,
     clientSecret,
-    'http://localhost:5000/api/auth/google/callback'
+    redirectUri
   );
   
   const { tokens } = await oauth2Client.getToken(code);
+  console.log('Successfully exchanged code for tokens');
   return tokens;
 }

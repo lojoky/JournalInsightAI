@@ -813,11 +813,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/integrations/google-docs/auth-url", requireAuth, async (req, res) => {
     try {
+      console.log("Generating Google OAuth URL...");
+      
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        return res.status(500).json({ message: "Google OAuth credentials not configured" });
+        console.error("Missing Google OAuth credentials");
+        return res.status(500).json({ message: "Google OAuth credentials not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment variables." });
       }
 
       const authUrl = await getAuthUrl(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+      console.log("Successfully generated Google auth URL");
       
       res.json({ authUrl });
     } catch (error) {
@@ -829,12 +833,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google OAuth callback route
   app.get("/api/auth/google/callback", async (req, res) => {
     try {
-      const { code, state } = req.query;
+      console.log("Google OAuth callback received");
+      const { code, error, error_description } = req.query;
+      
+      if (error) {
+        console.error("Google OAuth error:", error, error_description);
+        return res.status(400).send(`
+          <html>
+            <head><title>Google Authorization Error</title></head>
+            <body>
+              <h1>Authorization Failed</h1>
+              <p>Error: ${error}</p>
+              <p>Description: ${error_description || 'Unknown error'}</p>
+              <p>Please close this window and try again.</p>
+            </body>
+          </html>
+        `);
+      }
       
       if (!code) {
-        return res.status(400).send("Missing authorization code");
+        console.error("Missing authorization code in callback");
+        return res.status(400).send(`
+          <html>
+            <head><title>Google Authorization Error</title></head>
+            <body>
+              <h1>Authorization Failed</h1>
+              <p>Missing authorization code. Please try the authentication process again.</p>
+            </body>
+          </html>
+        `);
       }
 
+      console.log("Storing Google auth code in session");
       // Store the code in a temporary session for the configuration step
       if (req.session) {
         req.session.googleAuthCode = code as string;
