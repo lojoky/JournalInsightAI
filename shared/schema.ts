@@ -59,9 +59,32 @@ export const sentimentAnalysis = pgTable("sentiment_analysis", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userIntegrations = pgTable("user_integrations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  integrationType: text("integration_type").notNull(), // "notion", "google_docs", etc.
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  config: jsonb("config"), // Store integration-specific configuration
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const notionEntries = pgTable("notion_entries", {
+  id: serial("id").primaryKey(),
+  journalEntryId: integer("journal_entry_id").notNull(),
+  userId: integer("user_id").notNull(),
+  notionPageId: text("notion_page_id").notNull(),
+  notionDatabaseId: text("notion_database_id").notNull(),
+  syncStatus: text("sync_status").notNull().default("pending"), // pending, synced, failed
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   journalEntries: many(journalEntries),
+  userIntegrations: many(userIntegrations),
+  notionEntries: many(notionEntries),
 }));
 
 export const journalEntriesRelations = relations(journalEntries, ({ one, many }) => ({
@@ -72,6 +95,7 @@ export const journalEntriesRelations = relations(journalEntries, ({ one, many })
   themes: many(themes),
   entryTags: many(entryTags),
   sentimentAnalysis: one(sentimentAnalysis),
+  notionEntry: one(notionEntries),
 }));
 
 export const themesRelations = relations(themes, ({ one }) => ({
@@ -99,6 +123,24 @@ export const entryTagsRelations = relations(entryTags, ({ one }) => ({
 export const sentimentAnalysisRelations = relations(sentimentAnalysis, ({ one }) => ({
   entry: one(journalEntries, {
     fields: [sentimentAnalysis.entryId],
+    references: [journalEntries.id],
+  }),
+}));
+
+export const userIntegrationsRelations = relations(userIntegrations, ({ one }) => ({
+  user: one(users, {
+    fields: [userIntegrations.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notionEntriesRelations = relations(notionEntries, ({ one }) => ({
+  user: one(users, {
+    fields: [notionEntries.userId],
+    references: [users.id],
+  }),
+  journalEntry: one(journalEntries, {
+    fields: [notionEntries.journalEntryId],
     references: [journalEntries.id],
   }),
 }));
@@ -147,6 +189,21 @@ export const insertSentimentAnalysisSchema = createInsertSchema(sentimentAnalysi
   overallSentiment: true,
 });
 
+export const insertUserIntegrationSchema = createInsertSchema(userIntegrations).pick({
+  userId: true,
+  integrationType: true,
+  isEnabled: true,
+  config: true,
+});
+
+export const insertNotionEntrySchema = createInsertSchema(notionEntries).pick({
+  journalEntryId: true,
+  userId: true,
+  notionPageId: true,
+  notionDatabaseId: true,
+  syncStatus: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -165,6 +222,12 @@ export type EntryTag = typeof entryTags.$inferSelect;
 
 export type InsertSentimentAnalysis = z.infer<typeof insertSentimentAnalysisSchema>;
 export type SentimentAnalysis = typeof sentimentAnalysis.$inferSelect;
+
+export type InsertUserIntegration = z.infer<typeof insertUserIntegrationSchema>;
+export type UserIntegration = typeof userIntegrations.$inferSelect;
+
+export type InsertNotionEntry = z.infer<typeof insertNotionEntrySchema>;
+export type NotionEntry = typeof notionEntries.$inferSelect;
 
 // Enhanced types for API responses
 export type JournalEntryWithDetails = JournalEntry & {
