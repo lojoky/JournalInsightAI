@@ -5,6 +5,8 @@ import {
   tags, 
   entryTags, 
   sentimentAnalysis,
+  userIntegrations,
+  notionEntries,
   type User, 
   type InsertUser,
   type JournalEntry,
@@ -17,6 +19,10 @@ import {
   type InsertEntryTag,
   type SentimentAnalysis,
   type InsertSentimentAnalysis,
+  type UserIntegration,
+  type InsertUserIntegration,
+  type NotionEntry,
+  type InsertNotionEntry,
   type JournalEntryWithDetails
 } from "@shared/schema";
 import { db } from "./db";
@@ -54,6 +60,18 @@ export interface IStorage {
 
   // Failed entries methods
   getFailedEntries(): Promise<JournalEntry[]>;
+
+  // User integration methods
+  createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration>;
+  updateUserIntegration(userId: number, integrationType: string, updates: Partial<InsertUserIntegration>): Promise<UserIntegration>;
+  getUserIntegration(userId: number, integrationType: string): Promise<UserIntegration | undefined>;
+  getUserIntegrations(userId: number): Promise<UserIntegration[]>;
+
+  // Notion entries methods
+  createNotionEntry(entry: InsertNotionEntry): Promise<NotionEntry>;
+  updateNotionEntry(id: number, updates: Partial<InsertNotionEntry>): Promise<NotionEntry>;
+  getNotionEntryByJournalId(journalEntryId: number): Promise<NotionEntry | undefined>;
+  getNotionEntriesByUser(userId: number): Promise<NotionEntry[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +276,80 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(journalEntries.createdAt));
     
     return entries;
+  }
+
+  // User integration methods
+  async createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration> {
+    const [result] = await db
+      .insert(userIntegrations)
+      .values(integration)
+      .returning();
+    return result;
+  }
+
+  async updateUserIntegration(userId: number, integrationType: string, updates: Partial<InsertUserIntegration>): Promise<UserIntegration> {
+    const [result] = await db
+      .update(userIntegrations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(userIntegrations.userId, userId),
+        eq(userIntegrations.integrationType, integrationType)
+      ))
+      .returning();
+    return result;
+  }
+
+  async getUserIntegration(userId: number, integrationType: string): Promise<UserIntegration | undefined> {
+    const [integration] = await db
+      .select()
+      .from(userIntegrations)
+      .where(and(
+        eq(userIntegrations.userId, userId),
+        eq(userIntegrations.integrationType, integrationType)
+      ));
+    return integration || undefined;
+  }
+
+  async getUserIntegrations(userId: number): Promise<UserIntegration[]> {
+    return await db
+      .select()
+      .from(userIntegrations)
+      .where(eq(userIntegrations.userId, userId))
+      .orderBy(desc(userIntegrations.createdAt));
+  }
+
+  // Notion entries methods
+  async createNotionEntry(entry: InsertNotionEntry): Promise<NotionEntry> {
+    const [result] = await db
+      .insert(notionEntries)
+      .values(entry)
+      .returning();
+    return result;
+  }
+
+  async updateNotionEntry(id: number, updates: Partial<InsertNotionEntry>): Promise<NotionEntry> {
+    const [result] = await db
+      .update(notionEntries)
+      .set(updates)
+      .where(eq(notionEntries.id, id))
+      .returning();
+    return result;
+  }
+
+  async getNotionEntryByJournalId(journalEntryId: number): Promise<NotionEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(notionEntries)
+      .where(eq(notionEntries.journalEntryId, journalEntryId));
+    return entry || undefined;
+  }
+
+  async getNotionEntriesByUser(userId: number): Promise<NotionEntry[]> {
+    return await db
+      .select()
+      .from(notionEntries)
+      .where(eq(notionEntries.userId, userId))
+      .orderBy(desc(notionEntries.createdAt));
   }
 }
 

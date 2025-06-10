@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle } from "lucide-react";
+import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle, Zap } from "lucide-react";
 import { Link } from "wouter";
 import RetryFailedEntries from "@/components/retry-failed-entries";
+import NotionConfigDialog from "@/components/notion-config-dialog";
 
 export default function Settings() {
   return (
@@ -30,6 +31,29 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Processing Status */}
         <RetryFailedEntries />
+
+        {/* Integrations */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Zap className="w-5 h-5 mr-2" />
+              Integrations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900">Notion</h4>
+                <p className="text-sm text-gray-500">Automatically sync journal entries to your Notion workspace</p>
+              </div>
+              <NotionConfigDialog>
+                <Button variant="outline" size="sm">
+                  Configure
+                </Button>
+              </NotionConfigDialog>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* General Settings */}
         <Card>

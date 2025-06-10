@@ -5,6 +5,13 @@ import { storage } from "./storage";
 import { authenticateUser, createUser, validateUsername, validatePassword } from "./auth";
 import type { AuthenticatedRequest } from "./types";
 import { 
+  createNotionClient, 
+  extractPageIdFromUrl, 
+  createJournalDatabase, 
+  addJournalEntryToNotion,
+  getNotionDatabases 
+} from "./notion";
+import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
   insertTagSchema,
@@ -526,6 +533,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get tags error:", error);
       res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  // Notion Integration Routes
+  
+  // Get user's Notion integration configuration
+  app.get("/api/integrations/notion", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "notion");
+      
+      if (!integration) {
+        return res.json({ 
+          enabled: false, 
+          configured: false 
+        });
+      }
+
+      res.json({
+        enabled: integration.isEnabled,
+        configured: !!integration.config,
+        config: integration.config ? {
+          hasToken: !!integration.config.integrationToken,
+          hasPageUrl: !!integration.config.pageUrl,
+          databaseName: integration.config.databaseName || "Journal Entries"
+        } : null
+      });
+    } catch (error) {
+      console.error("Get Notion integration error:", error);
+      res.status(500).json({ message: "Failed to fetch Notion integration" });
+    }
+  });
+
+  // Configure user's Notion integration
+  app.post("/api/integrations/notion/configure", requireAuth, async (req, res) => {
+    try {
+      const { integrationToken, pageUrl, databaseName } = req.body;
+
+      if (!integrationToken || !pageUrl) {
+        return res.status(400).json({ 
+          message: "Integration token and page URL are required" 
+        });
+      }
+
+      // Test the Notion connection
+      try {
+        const notion = createNotionClient(integrationToken);
+        const pageId = extractPageIdFromUrl(pageUrl);
+        
+        // Try to list databases to verify access
+        await getNotionDatabases(notion, pageId);
+        
+        const config = {
+          integrationToken,
+          pageUrl,
+          pageId,
+          databaseName: databaseName || "Journal Entries"
+        };
+
+        // Check if integration exists
+        const existingIntegration = await storage.getUserIntegration(req.session.userId!, "notion");
+        
+        if (existingIntegration) {
+          await storage.updateUserIntegration(req.session.userId!, "notion", {
+            config,
+            isEnabled: true
+          });
+        } else {
+          await storage.createUserIntegration({
+            userId: req.session.userId!,
+            integrationType: "notion",
+            isEnabled: true,
+            config
+          });
+        }
+
+        res.json({ 
+          success: true, 
+          message: "Notion integration configured successfully" 
+        });
+      } catch (notionError) {
+        console.error("Notion connection error:", notionError);
+        res.status(400).json({ 
+          message: "Failed to connect to Notion. Please check your integration token and page URL." 
+        });
+      }
+    } catch (error) {
+      console.error("Configure Notion integration error:", error);
+      res.status(500).json({ message: "Failed to configure Notion integration" });
+    }
+  });
+
+  // Toggle Notion integration on/off
+  app.post("/api/integrations/notion/toggle", requireAuth, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      
+      const integration = await storage.getUserIntegration(req.session.userId!, "notion");
+      if (!integration) {
+        return res.status(404).json({ message: "Notion integration not configured" });
+      }
+
+      await storage.updateUserIntegration(req.session.userId!, "notion", {
+        isEnabled: enabled
+      });
+
+      res.json({ 
+        success: true, 
+        enabled,
+        message: `Notion integration ${enabled ? 'enabled' : 'disabled'}` 
+      });
+    } catch (error) {
+      console.error("Toggle Notion integration error:", error);
+      res.status(500).json({ message: "Failed to toggle Notion integration" });
+    }
+  });
+
+  // Test Notion connection
+  app.post("/api/integrations/notion/test", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "notion");
+      
+      if (!integration || !integration.config) {
+        return res.status(404).json({ message: "Notion integration not configured" });
+      }
+
+      const notion = createNotionClient(integration.config.integrationToken);
+      const databases = await getNotionDatabases(notion, integration.config.pageId);
+      
+      res.json({ 
+        success: true, 
+        message: "Connection successful",
+        databaseCount: databases.length
+      });
+    } catch (error) {
+      console.error("Test Notion connection error:", error);
+      res.status(400).json({ 
+        message: "Connection failed. Please check your configuration." 
+      });
     }
   });
 
