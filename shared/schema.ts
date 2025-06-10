@@ -80,11 +80,24 @@ export const notionEntries = pgTable("notion_entries", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const googleDocs = pgTable("google_docs", {
+  id: serial("id").primaryKey(),
+  journalEntryId: integer("journal_entry_id").notNull(),
+  userId: integer("user_id").notNull(),
+  googleDocId: text("google_doc_id").notNull(),
+  googleFolderId: text("google_folder_id").notNull(),
+  documentUrl: text("document_url").notNull(),
+  syncStatus: text("sync_status").notNull().default("pending"), // pending, synced, failed
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   journalEntries: many(journalEntries),
   userIntegrations: many(userIntegrations),
   notionEntries: many(notionEntries),
+  googleDocs: many(googleDocs),
 }));
 
 export const journalEntriesRelations = relations(journalEntries, ({ one, many }) => ({
@@ -96,6 +109,7 @@ export const journalEntriesRelations = relations(journalEntries, ({ one, many })
   entryTags: many(entryTags),
   sentimentAnalysis: one(sentimentAnalysis),
   notionEntry: one(notionEntries),
+  googleDoc: one(googleDocs),
 }));
 
 export const themesRelations = relations(themes, ({ one }) => ({
@@ -141,6 +155,17 @@ export const notionEntriesRelations = relations(notionEntries, ({ one }) => ({
   }),
   journalEntry: one(journalEntries, {
     fields: [notionEntries.journalEntryId],
+    references: [journalEntries.id],
+  }),
+}));
+
+export const googleDocsRelations = relations(googleDocs, ({ one }) => ({
+  user: one(users, {
+    fields: [googleDocs.userId],
+    references: [users.id],
+  }),
+  journalEntry: one(journalEntries, {
+    fields: [googleDocs.journalEntryId],
     references: [journalEntries.id],
   }),
 }));
