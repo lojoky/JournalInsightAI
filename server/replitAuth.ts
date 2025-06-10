@@ -128,10 +128,15 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  console.log('Authentication check - Headers:', req.headers.authorization ? 'Bearer token present' : 'No bearer token');
+  console.log('Authentication check - Session authenticated:', req.isAuthenticated?.());
+  console.log('Authentication check - User:', req.user ? 'User object present' : 'No user object');
+
   // Check Firebase authentication first
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
+      console.log('Attempting Firebase authentication...');
       const { authenticateFirebase } = await import('./firebaseAuth');
       return authenticateFirebase(req, res, next);
     } catch (error) {
@@ -143,26 +148,32 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user?.expires_at) {
+    console.log('Replit auth failed - not authenticated or no expires_at');
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
+    console.log('Replit auth successful - token still valid');
     return next();
   }
 
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
+    console.log('Replit auth failed - no refresh token');
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
   try {
+    console.log('Attempting token refresh...');
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
+    console.log('Token refresh successful');
     return next();
   } catch (error) {
+    console.error('Token refresh failed:', error);
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
