@@ -93,9 +93,9 @@ Response (just the date or "none"):`;
     await storage.createGoogleDoc({
       journalEntryId: entry.id,
       userId: entry.userId,
-      documentId: sharedDoc.documentId,
+      googleDocId: sharedDoc.documentId,
       documentUrl: sharedDoc.url,
-      folderId: folder.id,
+      googleFolderId: folder.id,
       syncStatus: "synced"
     });
 

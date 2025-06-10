@@ -197,7 +197,7 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
             Google Docs Integration
           </DialogTitle>
           <DialogDescription>
-            Automatically create individual Google Docs for each journal entry in your Google Drive folder
+            Automatically add all journal entries to a single shared Google Doc in your Drive folder
           </DialogDescription>
         </DialogHeader>
 
@@ -315,7 +315,7 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
                           {...form.register("folderName")}
                         />
                         <p className="text-xs text-gray-500">
-                          Name for the folder where journal documents will be stored
+                          Name for the folder where your shared journal document will be stored
                         </p>
                       </div>
 
@@ -343,21 +343,21 @@ export default function GoogleDocsConfigDialog({ children }: GoogleDocsConfigDia
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div>
-                  <strong>Automatic Document Creation:</strong>
+                  <strong>Single Shared Document:</strong>
                   <p className="text-gray-600 ml-4">
-                    Each journal entry creates a separate Google Doc with formatted content, themes, and tags
+                    All journal entries are added to one shared Google Doc for easy access and reading
                   </p>
                 </div>
                 <div>
                   <strong>Organized Storage:</strong>
                   <p className="text-gray-600 ml-4">
-                    All documents are stored in a dedicated folder in your Google Drive
+                    The shared document is stored in a dedicated folder in your Google Drive
                   </p>
                 </div>
                 <div>
                   <strong>Rich Formatting:</strong>
                   <p className="text-gray-600 ml-4">
-                    Documents include titles, dates, transcribed text, themes, and tags with proper formatting
+                    Each entry includes titles, dates, transcribed text, themes, and tags with proper formatting
                   </p>
                 </div>
                 <div>
