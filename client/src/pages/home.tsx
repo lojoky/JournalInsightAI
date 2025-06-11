@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Brain, User, Menu, Download, LogOut } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import FileUpload from "@/components/file-upload";
 import ProcessingStatus from "@/components/processing-status";
 import TranscriptionResults from "@/components/transcription-results";
@@ -32,9 +33,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-background border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2 sm:space-x-3">
@@ -58,6 +59,9 @@ export default function Home() {
             
             {/* Mobile & Desktop Actions */}
             <div className="flex items-center space-x-1 sm:space-x-3">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               {/* Desktop Export */}
               <div className="hidden sm:block">
                 <ExportDialog>
