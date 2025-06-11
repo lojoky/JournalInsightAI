@@ -5,6 +5,7 @@ import type { JournalEntryWithDetails } from "@shared/schema";
 interface ProcessingStatusProps {
   entry: JournalEntryWithDetails | null;
   isProcessing: boolean;
+  bulkProgress?: { current: number; total: number } | null;
 }
 
 interface ProcessingStep {
@@ -35,7 +36,7 @@ const steps: ProcessingStep[] = [
   }
 ];
 
-export default function ProcessingStatus({ entry, isProcessing }: ProcessingStatusProps) {
+export default function ProcessingStatus({ entry, isProcessing, bulkProgress }: ProcessingStatusProps) {
   const getStepStatus = (stepId: string) => {
     if (!entry) {
       return stepId === "upload" ? "pending" : "waiting";

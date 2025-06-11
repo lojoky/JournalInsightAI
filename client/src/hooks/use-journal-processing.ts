@@ -294,8 +294,17 @@ export function useJournalProcessing() {
     }
   }, [currentEntry, analysisMutation]);
 
-  // Bulk upload function
+  // Enhanced bulk upload function with progress tracking
   const uploadBulkFiles = useCallback(async (files: File[]) => {
+    if (files.length > 100) {
+      toast({
+        title: "Too many files",
+        description: "Maximum 100 files allowed per batch",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setBulkProgress({ current: 0, total: files.length });
 
@@ -309,15 +318,58 @@ export function useJournalProcessing() {
       const response = await apiRequest('POST', '/api/upload-bulk', formData);
       const result = await response.json();
       
-      setBulkProgress({ current: files.length, total: files.length });
+      if (result.batchId) {
+        // Start polling for progress
+        const progressInterval = setInterval(async () => {
+          try {
+            const progressResponse = await fetch(`/api/bulk-progress/${result.batchId}`, {
+              credentials: 'include'
+            });
+            const progressData = await progressResponse.json();
+            
+            setBulkProgress({
+              current: progressData.completed + progressData.failed,
+              total: progressData.total
+            });
 
-      // Invalidate cache to refresh the entries list
-      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
-      
+            // Stop polling when all files are processed
+            if (progressData.progress >= 100) {
+              clearInterval(progressInterval);
+              setIsProcessing(false);
+              setBulkProgress(null);
+              
+              // Refresh the entries list
+              queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+              
+              toast({
+                title: "Bulk processing complete",
+                description: `Processed ${progressData.completed} files successfully, ${progressData.failed} failed`,
+              });
+            }
+          } catch (progressError) {
+            console.error('Progress tracking error:', progressError);
+            clearInterval(progressInterval);
+            setIsProcessing(false);
+            setBulkProgress(null);
+          }
+        }, 3000); // Poll every 3 seconds
+
+        // Fallback timeout to prevent infinite polling
+        setTimeout(() => {
+          clearInterval(progressInterval);
+          if (isProcessing) {
+            setIsProcessing(false);
+            setBulkProgress(null);
+            queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+          }
+        }, 30 * 60 * 1000); // 30 minutes timeout
+      }
+
       toast({
-        title: "Bulk upload complete",
-        description: result.message || `Successfully uploaded ${files.length} files`,
+        title: "Upload started",
+        description: `${files.length} files uploaded, processing in background...`,
       });
+      
     } catch (error) {
       console.error('Bulk upload error:', error);
       toast({
@@ -325,11 +377,10 @@ export function useJournalProcessing() {
         description: "Please try again",
         variant: "destructive",
       });
-    } finally {
       setIsProcessing(false);
       setBulkProgress(null);
     }
-  }, [toast, queryClient]);
+  }, [toast, queryClient, isProcessing]);
 
   // Function to add custom tag
   const addCustomTag = useCallback(async (entryId: number, tagName: string, category?: string) => {
