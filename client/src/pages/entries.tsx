@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X, CheckSquare, Square, Merge } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Link } from "wouter";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -318,9 +319,9 @@ export default function Entries() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="bg-background border-b border-border sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-2 sm:space-x-4">
@@ -334,8 +335,8 @@ export default function Entries() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-[#111827]">Journal Entries</h1>
-                <p className="text-xs sm:text-sm text-gray-500">
+                <h1 className="text-lg sm:text-xl font-semibold text-foreground">Journal Entries</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {selectedEntries.size > 0 
                     ? `${selectedEntries.size} selected • ${allEntries?.length || 0} total`
                     : `${allEntries?.length || 0} entries`
@@ -344,6 +345,7 @@ export default function Entries() {
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-3">
+              <ThemeToggle />
               {!isSelectMode ? (
                 <>
                   <Button 

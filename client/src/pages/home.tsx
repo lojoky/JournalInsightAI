@@ -43,18 +43,18 @@ export default function Home() {
                 <Brain className="text-white w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-lg sm:text-xl font-semibold text-[#111827]">JournalAI</h1>
-                <p className="text-xs text-gray-500">AI-Powered Journal Processing</p>
+                <h1 className="text-lg sm:text-xl font-semibold text-foreground">JournalAI</h1>
+                <p className="text-xs text-muted-foreground">AI-Powered Journal Processing</p>
               </div>
-              <h1 className="text-lg font-semibold text-[#111827] sm:hidden">JournalAI</h1>
+              <h1 className="text-lg font-semibold text-foreground sm:hidden">JournalAI</h1>
             </div>
             
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
-              <span className="text-[#111827] hover:text-[#6366F1] font-medium">Dashboard</span>
-              <a href="/entries" className="text-gray-600 hover:text-[#6366F1]">Entries</a>
-              <a href="/insights" className="text-gray-600 hover:text-[#6366F1]">Insights</a>
-              <a href="/settings" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
+              <span className="text-foreground hover:text-primary font-medium">Dashboard</span>
+              <a href="/entries" className="text-muted-foreground hover:text-primary transition-colors">Entries</a>
+              <a href="/insights" className="text-muted-foreground hover:text-primary transition-colors">Insights</a>
+              <a href="/settings" className="text-muted-foreground hover:text-primary transition-colors">Settings</a>
             </nav>
             
             {/* Mobile & Desktop Actions */}
@@ -128,8 +128,8 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Page Header */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#111827] mb-2">Process Journal Entry</h2>
-          <p className="text-sm sm:text-base text-gray-600">Upload an image of your handwritten journal entry to extract insights and organize your thoughts.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Process Journal Entry</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Upload an image of your handwritten journal entry to extract insights and organize your thoughts.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
@@ -218,21 +218,21 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12 sm:mt-16">
+      <footer className="bg-background border-t border-border mt-12 sm:mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             <div className="col-span-2 sm:col-span-1">
               <div className="flex items-center space-x-3 mb-3 sm:mb-4">
-                <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center">
-                  <Brain className="text-white w-4 h-4" />
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <Brain className="text-primary-foreground w-4 h-4" />
                 </div>
-                <span className="font-semibold text-[#111827]">JournalAI</span>
+                <span className="font-semibold text-foreground">JournalAI</span>
               </div>
-              <p className="text-gray-600 text-sm">Transform your handwritten thoughts into organized digital insights with AI-powered analysis.</p>
+              <p className="text-muted-foreground text-sm">Transform your handwritten thoughts into organized digital insights with AI-powered analysis.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-[#111827] mb-3">Features</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-3">Features</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>OCR Processing</li>
                 <li>AI Theme Analysis</li>
                 <li>Auto Tagging</li>
@@ -240,8 +240,8 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-[#111827] mb-3">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-3">Support</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>Help Center</li>
                 <li>Contact Us</li>
                 <li>Privacy Policy</li>
@@ -249,15 +249,15 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-[#111827] mb-3">Connect</h4>
+              <h4 className="font-semibold text-foreground mb-3">Connect</h4>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-[#6366F1] transition-colors">Twitter</a>
-                <a href="#" className="text-gray-400 hover:text-[#6366F1] transition-colors">LinkedIn</a>
-                <a href="#" className="text-gray-400 hover:text-[#6366F1] transition-colors">GitHub</a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">Twitter</a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">LinkedIn</a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">GitHub</a>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-200 mt-6 sm:mt-8 pt-4 sm:pt-6 text-center text-sm text-gray-600">
+          <div className="border-t border-border mt-6 sm:mt-8 pt-4 sm:pt-6 text-center text-sm text-muted-foreground">
             <p>&copy; 2024 JournalAI. All rights reserved.</p>
           </div>
         </div>

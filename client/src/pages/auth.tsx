@@ -3,6 +3,7 @@ import LoginForm from "@/components/auth/login-form";
 import SignupForm from "@/components/auth/signup-form";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLocation } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
