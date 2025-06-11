@@ -80,13 +80,37 @@ export const notionEntries = pgTable("notion_entries", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Google Docs integration removed - will be rebuilt
+export const googleDocsCredentials = pgTable("google_docs_credentials", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  tokenType: text("token_type").notNull().default("Bearer"),
+  expiryDate: timestamp("expiry_date").notNull(),
+  scope: text("scope").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const googleDocsEntries = pgTable("google_docs_entries", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  journalEntryId: integer("journal_entry_id").notNull().references(() => journalEntries.id, { onDelete: "cascade" }),
+  documentId: text("document_id").notNull(),
+  documentTitle: text("document_title").notNull(),
+  documentUrl: text("document_url").notNull(),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   journalEntries: many(journalEntries),
   userIntegrations: many(userIntegrations),
   notionEntries: many(notionEntries),
+  googleDocsCredentials: one(googleDocsCredentials),
+  googleDocsEntries: many(googleDocsEntries),
 }));
 
 export const journalEntriesRelations = relations(journalEntries, ({ one, many }) => ({
@@ -98,6 +122,7 @@ export const journalEntriesRelations = relations(journalEntries, ({ one, many })
   entryTags: many(entryTags),
   sentimentAnalysis: one(sentimentAnalysis),
   notionEntry: one(notionEntries),
+  googleDocsEntry: one(googleDocsEntries),
 }));
 
 export const themesRelations = relations(themes, ({ one }) => ({
@@ -147,7 +172,23 @@ export const notionEntriesRelations = relations(notionEntries, ({ one }) => ({
   }),
 }));
 
-// Google Docs relations removed
+export const googleDocsCredentialsRelations = relations(googleDocsCredentials, ({ one }) => ({
+  user: one(users, {
+    fields: [googleDocsCredentials.userId],
+    references: [users.id],
+  }),
+}));
+
+export const googleDocsEntriesRelations = relations(googleDocsEntries, ({ one }) => ({
+  user: one(users, {
+    fields: [googleDocsEntries.userId],
+    references: [users.id],
+  }),
+  journalEntry: one(journalEntries, {
+    fields: [googleDocsEntries.journalEntryId],
+    references: [journalEntries.id],
+  }),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -206,6 +247,23 @@ export const insertNotionEntrySchema = createInsertSchema(notionEntries).pick({
   notionPageId: true,
   notionDatabaseId: true,
   syncStatus: true,
+});
+
+export const insertGoogleDocsCredentialsSchema = createInsertSchema(googleDocsCredentials).pick({
+  userId: true,
+  accessToken: true,
+  refreshToken: true,
+  tokenType: true,
+  expiryDate: true,
+  scope: true,
+});
+
+export const insertGoogleDocsEntrySchema = createInsertSchema(googleDocsEntries).pick({
+  userId: true,
+  journalEntryId: true,
+  documentId: true,
+  documentTitle: true,
+  documentUrl: true,
 });
 
 // Types
