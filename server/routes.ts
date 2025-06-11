@@ -504,47 +504,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`OCR completed for entry ${entry.id}, text length: ${ocrResult.text?.length || 0}`);
         
         if (ocrResult.text && ocrResult.text.trim().length > 0) {
-          console.log(`Starting AI analysis for entry ${entry.id}`);
-          const analysisResult = await analyzeJournalEntry(ocrResult.text);
-          const sentimentResult = await analyzeSentiment(ocrResult.text);
-          console.log(`AI analysis completed for entry ${entry.id}`);
+          console.log(`OCR completed for entry ${entry.id}, checking for multiple dates...`);
+          
+          // Check for multiple dates and split if needed
+          const splitEntries = splitEntriesByDate(ocrResult.text);
+          console.log(`Found ${splitEntries.length} date-based entries in OCR text`);
+          
+          if (splitEntries.length > 1) {
+            // Multiple entries detected - process each separately
+            console.log(`Splitting entry ${entry.id} into ${splitEntries.length} separate entries`);
+            
+            // Update the original entry with the first split
+            const firstEntry = splitEntries[0];
+            console.log(`Processing first split entry with date: ${formatDateForLog(firstEntry.date)}`);
+            
+            const firstAnalysis = await analyzeJournalEntry(firstEntry.content);
+            const firstSentiment = await analyzeSentiment(firstEntry.content);
+            
+            await storage.updateJournalEntry(entry.id, {
+              title: firstAnalysis.title || `Journal Entry - ${formatDateForLog(firstEntry.date)}`,
+              transcribedText: firstEntry.content,
+              ocrConfidence: ocrResult.confidence,
+              processingStatus: "completed"
+            } as any);
+            
+            // Process themes, tags, and sentiment for first entry
+            await processEntryAnalysis(entry.id, firstAnalysis, firstSentiment);
+            
+            // Create new entries for remaining splits
+            for (let j = 1; j < splitEntries.length; j++) {
+              const splitEntry = splitEntries[j];
+              console.log(`Creating new entry for split ${j + 1} with date: ${formatDateForLog(splitEntry.date)}`);
+              
+              const newEntry = await storage.createJournalEntry({
+                userId: entry.userId,
+                title: `Journal Entry - ${formatDateForLog(splitEntry.date)}`,
+                originalImageUrl: entry.originalImageUrl, // Reuse same image
+                transcribedText: splitEntry.content,
+                ocrConfidence: ocrResult.confidence,
+                processingStatus: "completed"
+              } as any);
+              
+              const splitAnalysis = await analyzeJournalEntry(splitEntry.content);
+              const splitSentiment = await analyzeSentiment(splitEntry.content);
+              
+              // Update title with AI-generated one
+              await storage.updateJournalEntry(newEntry.id, {
+                title: splitAnalysis.title || newEntry.title
+              });
+              
+              // Process themes, tags, and sentiment for split entry
+              await processEntryAnalysis(newEntry.id, splitAnalysis, splitSentiment);
+              
+              // Sync split entry to Notion
+              try {
+                const completeNewEntry = await storage.getJournalEntry(newEntry.id);
+                if (completeNewEntry) {
+                  await syncJournalEntryToNotion(completeNewEntry);
+                  console.log(`Split entry ${newEntry.id} synced to Notion successfully`);
+                }
+              } catch (notionError) {
+                console.error(`Notion sync failed for split entry ${newEntry.id}:`, notionError);
+              }
+            }
+            
+            console.log(`Entry ${entry.id} split into ${splitEntries.length} entries successfully`);
+          } else {
+            // Single entry - process normally
+            console.log(`Processing single entry ${entry.id}`);
+            const singleEntry = splitEntries[0];
+            
+            const analysisResult = await analyzeJournalEntry(singleEntry.content);
+            const sentimentResult = await analyzeSentiment(singleEntry.content);
 
-          await storage.updateJournalEntry(entry.id, {
-            title: analysisResult.title || entry.title,
-            transcribedText: ocrResult.text,
-            ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed"
-          });
+            await storage.updateJournalEntry(entry.id, {
+              title: analysisResult.title || entry.title,
+              transcribedText: singleEntry.content,
+              ocrConfidence: ocrResult.confidence,
+              processingStatus: "completed"
+            } as any);
 
-          // Add themes
-          for (const theme of analysisResult.themes) {
-            await storage.createTheme({
-              entryId: entry.id,
-              title: theme.title,
-              description: theme.description,
-              confidence: Math.round(Number(theme.confidence)) // Ensure integer 0-100
-            });
+            // Process themes, tags, and sentiment
+            await processEntryAnalysis(entry.id, analysisResult, sentimentResult);
           }
-
-          // Add tags
-          for (const tagName of analysisResult.tags) {
-            const tag = await storage.getOrCreateTag(tagName);
-            await storage.addTagToEntry({
-              entryId: entry.id,
-              tagId: tag.id,
-              confidence: 80, // Convert 0.8 to percentage (80)
-              isAutoGenerated: true
-            });
-          }
-
-          // Add sentiment analysis
-          await storage.createSentimentAnalysis({
-            entryId: entry.id,
-            positiveScore: sentimentResult.positive,
-            neutralScore: sentimentResult.neutral,
-            concernScore: sentimentResult.concern,
-            overallSentiment: sentimentResult.overall
-          });
 
           const completeEntry = await storage.getJournalEntry(entry.id);
           
@@ -851,15 +893,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const entryId of entryIds) {
         try {
+          // Validate entryId is a valid integer
+          const parsedId = parseInt(entryId);
+          if (isNaN(parsedId) || parsedId <= 0) {
+            errors.push({ entryId, error: "Invalid entry ID" });
+            continue;
+          }
+
           // Verify the entry belongs to the user
-          const entry = await storage.getJournalEntry(entryId);
+          const entry = await storage.getJournalEntry(parsedId);
           if (!entry || entry.userId !== req.session.userId) {
             errors.push({ entryId, error: "Entry not found or unauthorized" });
             continue;
           }
 
-          await storage.deleteJournalEntry(entryId);
-          results.push({ entryId, status: "deleted" });
+          await storage.deleteJournalEntry(parsedId);
+          results.push({ entryId: parsedId, status: "deleted" });
         } catch (error) {
           console.error(`Failed to delete entry ${entryId}:`, error);
           errors.push({ entryId, error: error instanceof Error ? error.message : "Unknown error" });
