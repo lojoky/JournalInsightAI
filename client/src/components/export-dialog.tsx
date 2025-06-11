@@ -125,49 +125,9 @@ export default function ExportDialog({ children, selectedEntries, allEntries }: 
 
     ${filteredEntries.map(entry => `
         <div class="entry">
-            <div class="entry-header">
-                <div class="entry-title">${entry.title}</div>
-                <div class="entry-date">${formatDate(entry.createdAt.toString())}</div>
-            </div>
-            
+            <div class="entry-date">${formatDate(entry.createdAt.toString())}</div>
             <div class="entry-content">
-                ${entry.transcribedText ? `
-                    <div class="transcribed-text">
-                        <strong>📝 Transcribed Text:</strong><br>
-                        ${entry.transcribedText.replace(/\n/g, '<br>')}
-                    </div>
-                ` : ''}
-                
-                ${entry.themes && entry.themes.length > 0 ? `
-                    <div class="themes">
-                        <h4>🧠 Key Themes:</h4>
-                        ${entry.themes.map(theme => `
-                            <div class="theme">
-                                <div class="theme-title">${theme.title}</div>
-                                <div>${theme.description}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                
-                ${entry.tags && entry.tags.length > 0 ? `
-                    <div class="tags">
-                        <strong>🏷️ Tags:</strong><br>
-                        ${entry.tags.map(tag => `<span class="tag">${tag.name}</span>`).join('')}
-                    </div>
-                ` : ''}
-                
-                ${entry.sentimentAnalysis ? `
-                    <div class="sentiment">
-                        <strong>💭 Emotional Tone:</strong> ${entry.sentimentAnalysis.overallSentiment}
-                        <br>
-                        <small>
-                            Positive: ${Math.round(entry.sentimentAnalysis.positiveScore)}% | 
-                            Neutral: ${Math.round(entry.sentimentAnalysis.neutralScore)}% | 
-                            Concern: ${Math.round(entry.sentimentAnalysis.concernScore)}%
-                        </small>
-                    </div>
-                ` : ''}
+                ${entry.transcribedText ? removeEmojis(entry.transcribedText.replace(/\n/g, '<br>')) : 'No text available'}
             </div>
         </div>
     `).join('')}
@@ -267,26 +227,33 @@ export default function ExportDialog({ children, selectedEntries, allEntries }: 
                 <span>Entries to export:</span>
                 <span className="font-semibold">{filteredEntries.length}</span>
               </div>
+              {selectedEntries && selectedEntries.size > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Exporting selected entries
+                </div>
+              )}
             </CardContent>
           </Card>
 
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Date Range
-              </label>
-              <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All entries</SelectItem>
-                  <SelectItem value="last30">Last 30 days</SelectItem>
-                  <SelectItem value="last90">Last 90 days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {(!selectedEntries || selectedEntries.size === 0) && (
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Date Range
+                </label>
+                <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All entries</SelectItem>
+                    <SelectItem value="last30">Last 30 days</SelectItem>
+                    <SelectItem value="last90">Last 90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">

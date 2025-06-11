@@ -351,7 +351,7 @@ export default function Entries() {
                     <CheckSquare className="w-4 h-4 mr-2" />
                     Select
                   </Button>
-                  <ExportDialog>
+                  <ExportDialog allEntries={entries}>
                     <Button className="bg-[#6366F1] hover:bg-indigo-700">
                       <Download className="w-4 h-4 mr-2" />
                       Export All
@@ -370,6 +370,18 @@ export default function Entries() {
                       <Merge className="w-4 h-4 mr-2" />
                       Merge {selectedEntries.size}
                     </Button>
+                  )}
+                  {selectedEntries.size > 0 && (
+                    <ExportDialog selectedEntries={selectedEntries} allEntries={entries}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[#6366F1] text-[#6366F1] hover:bg-[#6366F1] hover:text-white"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export {selectedEntries.size}
+                      </Button>
+                    </ExportDialog>
                   )}
                   {selectedEntries.size > 0 && (
                     <AlertDialog>
