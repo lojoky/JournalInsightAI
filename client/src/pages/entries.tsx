@@ -377,6 +377,7 @@ export default function Entries() {
                               variant="ghost"
                               onClick={(e) => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 handleEditStart(entry);
                               }}
                             >
@@ -387,7 +388,10 @@ export default function Entries() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={(e) => e.preventDefault()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
                                 >
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </Button>
