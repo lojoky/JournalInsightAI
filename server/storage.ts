@@ -128,11 +128,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
-    const [journalEntry] = await db
-      .insert(journalEntries)
-      .values(entry)
-      .returning();
-    return journalEntry;
+    try {
+      const [journalEntry] = await db
+        .insert(journalEntries)
+        .values(entry)
+        .returning();
+      return journalEntry;
+    } catch (error: any) {
+      // Handle unique constraint violations for hash fields
+      if (error.code === '23505') { // PostgreSQL unique violation
+        if (error.constraint?.includes('image_hash')) {
+          throw new Error('Duplicate image detected');
+        }
+        if (error.constraint?.includes('transcript_hash')) {
+          throw new Error('Duplicate transcript detected');
+        }
+      }
+      throw error;
+    }
   }
 
   async updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {

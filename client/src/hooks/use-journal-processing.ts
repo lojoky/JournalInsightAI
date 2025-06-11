@@ -101,10 +101,14 @@ export function useJournalProcessing() {
         userId: data.userId,
         createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
         updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+        entryDate: null,
+        mergedFromIds: null,
+        imageHash: null,
+        transcriptHash: null,
         themes: [],
         tags: [],
         sentimentAnalysis: undefined
-      } as JournalEntryWithDetails;
+      } as unknown as JournalEntryWithDetails;
       
       setCurrentEntry(newEntry);
       setPollingEntryId(data.id); // Start polling for this entry
