@@ -4,7 +4,7 @@ import { ArrowLeft, Settings as SettingsIcon, Palette, Bell, Shield, HelpCircle,
 import { Link } from "wouter";
 import RetryFailedEntries from "@/components/retry-failed-entries";
 import NotionConfigDialog from "@/components/notion-config-dialog";
-import GoogleDocsConfigDialog from "@/components/google-docs-config-dialog";
+// Google Docs integration removed - will be rebuilt
 
 export default function Settings() {
   return (

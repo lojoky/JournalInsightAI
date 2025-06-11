@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import ExportDialog from "@/components/export-dialog";
-import GoogleDocLink from "@/components/google-doc-link";
+// Google Docs integration removed - will be rebuilt
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {
@@ -149,7 +149,7 @@ export default function Entries() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <GoogleDocLink variant="outline" size="sm" />
+              {/* Google Docs integration will be rebuilt */}
               <ExportDialog>
                 <Button className="bg-[#6366F1] hover:bg-indigo-700">
                   <Download className="w-4 h-4 mr-2" />
