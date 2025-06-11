@@ -1,15 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare, Edit, Save, X } from "lucide-react";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function EntryDetail() {
   const [match, params] = useRoute("/entry/:id");
   const entryId = params?.id;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['/api/journal-entries', entryId],
@@ -19,6 +26,57 @@ export default function EntryDetail() {
     },
     enabled: !!entryId
   });
+
+  // Edit mutation
+  const editMutation = useMutation({
+    mutationFn: async ({ id, transcribedText }: { id: number; transcribedText: string }) => {
+      const response = await fetch(`/api/journal-entries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ transcribedText }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry Updated",
+        description: "Your journal entry has been updated and synced to Notion successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries', entryId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      setIsEditing(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditStart = () => {
+    setEditedText(entry?.transcribedText || "");
+    setIsEditing(true);
+  };
+
+  const handleEditSave = () => {
+    if (entry && editedText.trim()) {
+      editMutation.mutate({ id: entry.id, transcribedText: editedText.trim() });
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditedText("");
+    setIsEditing(false);
+  };
 
   if (isLoading) {
     return (
@@ -111,19 +169,69 @@ export default function EntryDetail() {
                   <MessageSquare className="w-5 h-5 mr-2" />
                   Extracted Text
                 </div>
-                {entry.ocrConfidence && (
-                  <Badge variant="outline">
-                    {entry.ocrConfidence}% confidence
-                  </Badge>
-                )}
+                <div className="flex items-center space-x-2">
+                  {entry.ocrConfidence && (
+                    <Badge variant="outline">
+                      {entry.ocrConfidence}% confidence
+                    </Badge>
+                  )}
+                  {!isEditing ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleEditStart}
+                      className="flex items-center space-x-1"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edit</span>
+                    </Button>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleEditSave}
+                        disabled={editMutation.isPending}
+                        className="flex items-center space-x-1"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>{editMutation.isPending ? 'Saving...' : 'Save'}</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleEditCancel}
+                        disabled={editMutation.isPending}
+                        className="flex items-center space-x-1"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cancel</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {entry.transcribedText}
-                </p>
-              </div>
+              {!isEditing ? (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {entry.transcribedText}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Textarea
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
+                    className="min-h-[200px] resize-none"
+                    placeholder="Edit your transcribed text..."
+                  />
+                  <p className="text-sm text-gray-500">
+                    Changes will be automatically synced to Notion when saved.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

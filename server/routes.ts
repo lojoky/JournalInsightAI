@@ -232,6 +232,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transcribedText: transcribedText.trim()
       });
 
+      // Sync to Notion if integration is set up
+      try {
+        const updatedEntryWithDetails = await storage.getJournalEntry(id);
+        if (updatedEntryWithDetails) {
+          await syncJournalEntryToNotion(updatedEntryWithDetails);
+          console.log(`Entry ${id} synced to Notion successfully`);
+        }
+      } catch (notionError) {
+        console.error(`Notion sync failed for entry ${id}:`, notionError);
+        // Don't fail the request if Notion sync fails
+      }
+
       console.log(`Entry ${id} updated successfully`);
       res.json({
         message: "Entry updated successfully",
