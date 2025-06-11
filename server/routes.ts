@@ -12,7 +12,7 @@ import {
   getNotionDatabases 
 } from "./notion";
 import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
-import { generateAuthUrl, exchangeCodeForTokens, validateTokens, GOOGLE_SCOPES } from "./google-oauth";
+import { generateAuthUrl, exchangeCodeForTokens, validateTokens, GOOGLE_SCOPES, createGoogleOAuthClient } from "./google-oauth";
 import { createGoogleDoc, appendToGoogleDoc, listUserGoogleDocs, getGoogleDocInfo } from "./google-docs";
 import { 
   insertJournalEntrySchema, 
@@ -777,11 +777,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const state = JSON.stringify({ userId: req.session.userId });
       const authUrl = generateAuthUrl(state);
+      
+      // Debug: Log the redirect URI being used
+      console.log("=== OAuth Debug Info ===");
+      console.log("Generated auth URL:", authUrl);
+      console.log("Redirect URI being used:", 'https://journal-ai-insights.replit.app/api/google/auth/callback');
+      console.log("REPLIT_DOMAINS:", process.env.REPLIT_DOMAINS);
+      console.log("Host from request:", req.get('host'));
+      
       res.json({ authUrl });
     } catch (error) {
       console.error("Google auth URL generation error:", error);
       res.status(500).json({ message: "Failed to generate Google auth URL" });
     }
+  });
+
+  // Test endpoint to verify callback URL is accessible
+  app.get("/api/google/auth/callback/test", async (req, res) => {
+    console.log("Test callback endpoint hit");
+    res.json({
+      message: "Callback URL is accessible",
+      timestamp: new Date().toISOString(),
+      query: req.query,
+      headers: req.headers
+    });
+  });
+
+  // Additional debug route to check current OAuth configuration
+  app.get("/api/google/debug", async (req, res) => {
+    const oauth2Client = createGoogleOAuthClient();
+    res.json({
+      redirectUri: 'https://journal-ai-insights.replit.app/api/google/auth/callback',
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      replitDomains: process.env.REPLIT_DOMAINS,
+      currentHost: req.get('host')
+    });
   });
 
   app.get("/api/google/auth/callback", async (req, res) => {

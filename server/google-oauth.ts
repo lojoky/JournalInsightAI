@@ -7,9 +7,10 @@ export const GOOGLE_SCOPES = [
 ];
 
 export function createGoogleOAuthClient(): OAuth2Client {
-  // Use environment variable or construct from request host
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
-    `${process.env.REPLIT_DOMAINS ? 'https://' + process.env.REPLIT_DOMAINS.split(',')[0] : 'http://localhost:5000'}/api/google/auth/callback`;
+  // Use the exact redirect URI that should be configured in Google Console
+  const redirectUri = 'https://journal-ai-insights.replit.app/api/google/auth/callback';
+    
+  console.log("Creating OAuth client with redirect URI:", redirectUri);
     
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
