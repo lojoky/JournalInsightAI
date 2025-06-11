@@ -554,6 +554,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merge journal entries endpoint
+  app.post("/api/journal-entries/merge", requireAuth, async (req, res) => {
+    try {
+      const { entryIds, mergedTitle, regenerateAnalysis = false, deleteOriginals = true } = req.body;
+      
+      if (!Array.isArray(entryIds) || entryIds.length < 2) {
+        return res.status(400).json({ message: "At least 2 entry IDs are required for merging" });
+      }
+
+      if (!mergedTitle || mergedTitle.trim().length === 0) {
+        return res.status(400).json({ message: "Merged title is required" });
+      }
+
+      console.log(`Merging entries ${entryIds.join(', ')} for user ${req.session.userId}`);
+      
+      const mergedEntry = await storage.mergeJournalEntries(
+        req.session.userId!,
+        entryIds,
+        mergedTitle.trim(),
+        regenerateAnalysis
+      );
+
+      // Optionally delete original entries
+      if (deleteOriginals) {
+        for (const entryId of entryIds) {
+          try {
+            await storage.deleteJournalEntry(entryId);
+            console.log(`Deleted original entry ${entryId}`);
+          } catch (error) {
+            console.error(`Failed to delete original entry ${entryId}:`, error);
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        mergedEntry: await storage.getJournalEntry(mergedEntry.id),
+        deletedOriginals: deleteOriginals
+      });
+    } catch (error) {
+      console.error("Merge entries error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to merge journal entries" 
+      });
+    }
+  });
+
   app.post("/api/upload", requireAuth, upload.single('journal'), async (req, res) => {
     try {
       if (!req.file) {

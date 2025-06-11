@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X, CheckSquare, Square } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X, CheckSquare, Square, Merge } from "lucide-react";
 import { Link } from "wouter";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import ExportDialog from "@/components/export-dialog";
 // Google Docs integration removed - will be rebuilt
@@ -21,6 +24,9 @@ export default function Entries() {
   const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTitle, setMergeTitle] = useState("");
+  const [deleteOriginals, setDeleteOriginals] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
