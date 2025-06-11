@@ -60,15 +60,7 @@ export default function Settings() {
                 </Button>
               </NotionConfigDialog>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">Google Docs</h4>
-                <p className="text-sm text-gray-500">Add all journal entries to a single shared Google Doc in your Drive folder</p>
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
-              </Button>
-            </div>
+
           </CardContent>
         </Card>
 

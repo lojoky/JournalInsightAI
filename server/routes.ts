@@ -749,204 +749,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-    try {
-      
-      if (!credentials) {
-        return res.json({ enabled: false, configured: false });
-      }
-
-      // Check if credentials are still valid
-      const isValid = await validateTokens(credentials);
-      
-      res.json({
-        enabled: true,
-        configured: isValid,
-        needsReauth: !isValid
-      });
-    } catch (error) {
-    }
-  });
-
-    try {
-      console.log("Authenticated user ID:", req.session.userId);
-      
-      const state = JSON.stringify({ userId: req.session.userId });
-      const authUrl = generateAuthUrl(state);
-      
-      console.log("Generated auth URL:", authUrl);
-      console.log("State parameter:", state);
-      
-      res.json({ authUrl });
-    } catch (error) {
-    }
-  });
-
-  // Test endpoint to verify callback URL is accessible
-    console.log("Test callback endpoint hit");
-    res.json({
-      message: "Callback URL is accessible",
-      timestamp: new Date().toISOString(),
-      query: req.query,
-      headers: req.headers
-    });
-  });
-
-  // Additional debug route to check current OAuth configuration
-    res.json({
-      replitDomains: process.env.REPLIT_DOMAINS,
-      currentHost: req.get('host')
-    });
-  });
-
-    try {
-      console.log("Environment:", {
-        NODE_ENV: process.env.NODE_ENV,
-        REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
-        host: req.get('host'),
-        protocol: req.protocol
-      });
-      console.log("Query params:", req.query);
-      console.log("User agent:", req.get('user-agent'));
-      console.log("Referer:", req.get('referer'));
-      
-      const { code, state, error } = req.query;
-      
-      if (error) {
-        return res.redirect("/settings/integrations?error=" + encodeURIComponent(error as string));
-      }
-      
-      if (!code || !state) {
-        console.error("Missing code or state:", { code: !!code, state: !!state });
-        return res.redirect("/settings/integrations?error=missing_params");
-      }
-
-      console.log("Parsing state:", state);
-      let userId;
-      try {
-        const parsedState = JSON.parse(state as string);
-        userId = parsedState.userId;
-        console.log("User ID from state:", userId);
-      } catch (parseError) {
-        console.error("Failed to parse state:", parseError);
-        return res.redirect("/settings/integrations?error=invalid_state");
-      }
-      
-      if (!userId) {
-        console.error("No userId found in state");
-        return res.redirect("/settings/integrations?error=no_user_id");
-      }
-      
-      console.log("Exchanging code for tokens...");
-      const tokens = await exchangeCodeForTokens(code as string);
-      console.log("Tokens received:", { 
-        hasAccessToken: !!tokens.access_token,
-        hasRefreshToken: !!tokens.refresh_token,
-        expiryDate: tokens.expiry_date 
-      });
-
-      if (!tokens.access_token) {
-        console.error("No access token received");
-        return res.redirect("/settings/integrations?error=no_access_token");
-      }
-
-      if (!tokens.refresh_token) {
-        console.error("No refresh token received - user may need to revoke and re-authorize");
-        return res.redirect("/settings/integrations?error=no_refresh_token");
-      }
-
-      // Store credentials in database
-      const credentials = {
-        userId,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        tokenType: tokens.token_type || 'Bearer',
-        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600000),
-      };
-
-      console.log("Checking for existing credentials...");
-      
-      if (existingCredentials) {
-        console.log("Updating existing credentials");
-          accessToken: credentials.accessToken,
-          refreshToken: credentials.refreshToken,
-          tokenType: credentials.tokenType,
-          expiryDate: credentials.expiryDate,
-          scope: credentials.scope
-        });
-      } else {
-        console.log("Creating new credentials");
-      }
-
-      console.log("Credentials saved successfully, redirecting...");
-    } catch (error) {
-      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-      res.redirect("/settings/integrations?error=auth_failed&details=" + encodeURIComponent(error instanceof Error ? error.message : 'Unknown error'));
-    }
-  });
-
-    try {
-    } catch (error) {
-    }
-  });
-
-    try {
-      
-      if (!credentials) {
-      }
-
-      res.json({ documents });
-    } catch (error) {
-    }
-  });
-
-    try {
-      const { entryId, syncMode, documentId } = req.body;
-      
-      if (!credentials) {
-      }
-
-      const entry = await storage.getJournalEntry(entryId);
-      if (!entry || entry.userId !== req.session.userId) {
-        return res.status(404).json({ message: "Entry not found" });
-      }
-
-      let docInfo;
-      
-      if (syncMode === 'new') {
-        // Create new document
-        const title = `Journal Entry - ${entry.title}`;
-      } else if (syncMode === 'append' && documentId) {
-        // Append to existing document
-      } else if (syncMode === 'last') {
-        // Append to last used document
-        if (lastEntry) {
-        } else {
-          // Create new if no last document
-          const title = `Journal Entry - ${entry.title}`;
-        }
-      }
-
-      if (docInfo) {
-          userId: req.session.userId!,
-          journalEntryId: entryId,
-          documentId: docInfo.id,
-          documentTitle: docInfo.title,
-          documentUrl: docInfo.url
-        });
-
-        res.json({
-          success: true,
-          documentUrl: docInfo.url,
-          documentTitle: docInfo.title
-        });
-      } else {
-      }
-    } catch (error) {
-    }
-  });
-
-  // Bulk delete endpoint
-  app.post("/api/journal-entries/bulk-delete", requireAuth, async (req, res) => {
+  // Bulk delete entries endpoint
+  app.delete("/api/journal-entries/bulk", requireAuth, async (req, res) => {
     try {
       const { entryIds } = req.body;
       
@@ -954,28 +758,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Entry IDs array is required" });
       }
 
-      let deletedCount = 0;
-      const errors: string[] = [];
+      const results = [];
+      const errors = [];
 
       for (const entryId of entryIds) {
         try {
-          // Verify entry belongs to user
+          // Verify the entry belongs to the user
           const entry = await storage.getJournalEntry(entryId);
           if (!entry || entry.userId !== req.session.userId) {
-            errors.push(`Entry ${entryId} not found or unauthorized`);
+            errors.push({ entryId, error: "Entry not found or unauthorized" });
             continue;
           }
 
           await storage.deleteJournalEntry(entryId);
-          deletedCount++;
+          results.push({ entryId, status: "deleted" });
         } catch (error) {
-          console.error(`Error deleting entry ${entryId}:`, error);
-          errors.push(`Failed to delete entry ${entryId}`);
+          console.error(`Failed to delete entry ${entryId}:`, error);
+          errors.push({ entryId, error: error instanceof Error ? error.message : "Unknown error" });
         }
       }
 
-      res.json({ 
-        deletedCount,
+      res.json({
+        success: true,
+        deletedCount: results.length,
         requestedCount: entryIds.length,
         errors: errors.length > 0 ? errors : undefined
       });
