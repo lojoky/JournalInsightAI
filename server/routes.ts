@@ -882,33 +882,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk delete entries endpoint
   app.delete("/api/journal-entries/bulk", requireAuth, async (req, res) => {
     try {
+      console.log("Bulk delete request body:", JSON.stringify(req.body));
       const { entryIds } = req.body;
       
       if (!Array.isArray(entryIds) || entryIds.length === 0) {
+        console.log("Invalid entryIds array:", entryIds);
         return res.status(400).json({ message: "Entry IDs array is required" });
       }
 
+      console.log("Processing bulk delete for IDs:", entryIds);
       const results = [];
       const errors = [];
 
-      for (const entryId of entryIds) {
-        try {
-          // Validate entryId is a valid integer
-          const parsedId = parseInt(entryId);
-          if (isNaN(parsedId) || parsedId <= 0) {
-            errors.push({ entryId, error: "Invalid entry ID" });
-            continue;
-          }
+      // Pre-validate all IDs before any database operations
+      const validIds = [];
+      for (let i = 0; i < entryIds.length; i++) {
+        const entryId = entryIds[i];
+        console.log(`Processing entryId[${i}]: ${entryId} (type: ${typeof entryId})`);
+        
+        // Handle both string and number inputs
+        let parsedId;
+        if (typeof entryId === 'number') {
+          parsedId = entryId;
+        } else if (typeof entryId === 'string') {
+          parsedId = parseInt(entryId, 10);
+        } else {
+          console.log(`Invalid entry ID type: ${entryId} (type: ${typeof entryId})`);
+          errors.push({ entryId, error: "Invalid entry ID type" });
+          continue;
+        }
+        
+        if (!Number.isInteger(parsedId) || isNaN(parsedId) || parsedId <= 0) {
+          console.log(`Invalid entry ID detected: ${entryId} (parsed: ${parsedId})`);
+          errors.push({ entryId, error: "Invalid entry ID format" });
+          continue;
+        }
+        validIds.push(parsedId);
+      }
 
+      console.log("Valid IDs to process:", validIds);
+
+      for (const entryId of validIds) {
+        try {
           // Verify the entry belongs to the user
-          const entry = await storage.getJournalEntry(parsedId);
+          const entry = await storage.getJournalEntry(entryId);
           if (!entry || entry.userId !== req.session.userId) {
             errors.push({ entryId, error: "Entry not found or unauthorized" });
             continue;
           }
 
-          await storage.deleteJournalEntry(parsedId);
-          results.push({ entryId: parsedId, status: "deleted" });
+          await storage.deleteJournalEntry(entryId);
+          results.push({ entryId, status: "deleted" });
         } catch (error) {
           console.error(`Failed to delete entry ${entryId}:`, error);
           errors.push({ entryId, error: error instanceof Error ? error.message : "Unknown error" });
