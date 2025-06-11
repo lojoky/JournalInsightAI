@@ -499,6 +499,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update journal entry transcription - protected route
+  app.patch("/api/journal-entries/:id/transcription", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const { transcribedText } = req.body;
+
+      if (!transcribedText && transcribedText !== "") {
+        return res.status(400).json({ message: "Transcribed text is required" });
+      }
+
+      // Check if entry exists and user owns it
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Update the transcription
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText: transcribedText.trim()
+      });
+
+      // Sync to Notion if integration is enabled
+      try {
+        const completeEntry = await storage.getJournalEntry(entryId);
+        if (completeEntry) {
+          await syncJournalEntryToNotion(completeEntry);
+        }
+      } catch (syncError) {
+        console.error("Notion sync failed after transcription update:", syncError);
+        // Don't fail the main request if Notion sync fails
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Transcription updated successfully",
+        entry: updatedEntry
+      });
+    } catch (error) {
+      console.error("Update transcription error:", error);
+      res.status(500).json({ message: "Failed to update transcription" });
+    }
+  });
+
   // Add custom tag to entry - protected route
   app.post("/api/journal-entries/:id/tags", requireAuth, async (req, res) => {
     try {

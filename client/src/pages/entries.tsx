@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import ExportDialog from "@/components/export-dialog";
+import EditableTranscription from "@/components/editable-transcription";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {
@@ -78,12 +79,12 @@ export default function Entries() {
         ) : (
           <div className="space-y-6">
             {entries.map((entry) => (
-              <Link key={entry.id} href={`/entry/${entry.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
+              <Card key={entry.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <Link href={`/entry/${entry.id}`} className="flex-1">
                       <div>
-                        <CardTitle className="text-lg">{entry.title}</CardTitle>
+                        <CardTitle className="text-lg hover:text-[#6366F1] cursor-pointer">{entry.title}</CardTitle>
                         <div className="flex items-center text-sm text-gray-500 mt-1">
                           <Calendar className="w-4 h-4 mr-1" />
                           {new Date(entry.createdAt).toLocaleDateString('en-US', {
@@ -93,40 +94,45 @@ export default function Entries() {
                           })}
                         </div>
                       </div>
-                      <Badge 
-                        variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
-                        className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
-                      >
-                        {entry.processingStatus}
-                      </Badge>
+                    </Link>
+                    <Badge 
+                      variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
+                      className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                    >
+                      {entry.processingStatus}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {entry.transcribedText ? (
+                    <div className="mb-4">
+                      <EditableTranscription 
+                        entryId={entry.id}
+                        initialText={entry.transcribedText}
+                        className="text-sm"
+                      />
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    {entry.transcribedText && (
-                      <p className="text-gray-700 text-sm mb-4 line-clamp-3">
-                        {entry.transcribedText.substring(0, 200)}
-                        {entry.transcribedText.length > 200 ? '...' : ''}
-                      </p>
-                    )}
-                    
-                    {entry.tags && entry.tags.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Tag className="w-4 h-4 text-gray-400" />
-                        {entry.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {tag.name}
-                          </Badge>
-                        ))}
-                        {entry.tags.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{entry.tags.length - 3} more
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+                  ) : (
+                    <p className="text-gray-500 text-sm mb-4 italic">No transcription available</p>
+                  )}
+                  
+                  {entry.tags && entry.tags.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Tag className="w-4 h-4 text-gray-400" />
+                      {entry.tags.slice(0, 3).map((tag, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {tag.name}
+                        </Badge>
+                      ))}
+                      {entry.tags.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{entry.tags.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
