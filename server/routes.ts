@@ -135,8 +135,10 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             try {
               const completeNewEntry = await storage.getJournalEntry(newEntry.id);
               if (completeNewEntry) {
-                await syncJournalEntryToNotion(completeNewEntry);
-                console.log(`Split entry ${newEntry.id} synced to Notion successfully`);
+                const syncSuccess = await syncJournalEntryToNotion(completeNewEntry);
+                if (syncSuccess) {
+                  console.log(`Split entry ${newEntry.id} synced to Notion successfully`);
+                }
               }
             } catch (notionError) {
               console.error(`Notion sync failed for split entry ${newEntry.id}:`, notionError);
@@ -147,8 +149,10 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
           try {
             const completeEntry = await storage.getJournalEntry(entry.id);
             if (completeEntry) {
-              await syncJournalEntryToNotion(completeEntry);
-              console.log(`Original entry ${entry.id} synced to Notion successfully`);
+              const syncSuccess = await syncJournalEntryToNotion(completeEntry);
+              if (syncSuccess) {
+                console.log(`Original entry ${entry.id} synced to Notion successfully`);
+              }
             }
           } catch (notionError) {
             console.error(`Notion sync failed for entry ${entry.id}:`, notionError);
@@ -700,8 +704,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const completeNewEntry = await storage.getJournalEntry(newEntry.id);
                 if (completeNewEntry) {
-                  await syncJournalEntryToNotion(completeNewEntry);
-                  console.log(`Split entry ${newEntry.id} synced to Notion successfully`);
+                  const syncSuccess = await syncJournalEntryToNotion(completeNewEntry);
+                  if (syncSuccess) {
+                    console.log(`Split entry ${newEntry.id} synced to Notion successfully`);
+                  }
                 }
               } catch (notionError) {
                 console.error(`Notion sync failed for split entry ${newEntry.id}:`, notionError);
@@ -734,7 +740,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const notionIntegration = await storage.getUserIntegration(userId, "notion");
           if (notionIntegration?.isEnabled && completeEntry) {
             try {
-              await syncJournalEntryToNotion(completeEntry);
+              const syncSuccess = await syncJournalEntryToNotion(completeEntry);
+              if (syncSuccess) {
+                console.log(`Entry ${entry.id} synced to Notion successfully`);
+              }
             } catch (notionError) {
               console.error("Notion sync failed:", notionError);
             }

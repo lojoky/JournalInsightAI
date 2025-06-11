@@ -12,14 +12,14 @@ import { Client } from "@notionhq/client";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): Promise<void> {
+export async function syncJournalEntryToNotion(entry: JournalEntryWithDetails): Promise<boolean> {
   try {
     // Get user's Notion integration
     const integration = await storage.getUserIntegration(entry.userId, "notion");
     
     if (!integration || !integration.isEnabled || !integration.config) {
       console.log(`Notion integration not enabled for user ${entry.userId}`);
-      return;
+      return false;
     }
 
     const config = integration.config as {
@@ -131,6 +131,7 @@ Response (just the date or "none"):`;
     }
 
     console.log(`Successfully synced journal entry ${entry.id} to Notion`);
+    return true;
   } catch (error) {
     console.error(`Failed to sync journal entry ${entry.id} to Notion:`, error);
     
@@ -142,7 +143,7 @@ Response (just the date or "none"):`;
       });
     }
     
-    throw error;
+    return false;
   }
 }
 
