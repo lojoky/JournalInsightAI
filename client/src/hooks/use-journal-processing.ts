@@ -135,6 +135,50 @@ export function useJournalProcessing() {
     }
   });
 
+  // Edit mutation for transcription updates with Notion sync
+  const editMutation = useMutation({
+    mutationFn: async ({ entryId, transcribedText }: { 
+      entryId: number; 
+      transcribedText: string; 
+    }) => {
+      const response = await fetch(`/api/journal-entries/${entryId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ transcribedText }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      setCurrentEntry(prev => prev ? {
+        ...prev,
+        transcribedText: variables.transcribedText
+      } : null);
+      
+      // Refresh the entries list
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      
+      toast({
+        title: "Entry Updated",
+        description: "Your journal entry has been updated and synced to Notion successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Transcription update error:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Legacy Tesseract transcription mutation
   const transcriptionMutation = useMutation({
     mutationFn: async ({ entryId, transcribedText, confidence }: { 
@@ -225,23 +269,19 @@ export function useJournalProcessing() {
     }
   }, [uploadMutation]);
 
-  // Function to update transcription
+  // Function to update transcription with Notion sync
   const processTranscription = useCallback(async (transcription: string) => {
     if (!currentEntry) return;
     
     try {
-      await transcriptionMutation.mutateAsync({
+      await editMutation.mutateAsync({
         entryId: currentEntry.id,
-        transcribedText: transcription,
-        confidence: currentEntry.ocrConfidence || 95
+        transcribedText: transcription
       });
-
-      // Re-analyze after transcription update
-      await analysisMutation.mutateAsync(currentEntry.id);
     } catch (error) {
       console.error('Transcription update error:', error);
     }
-  }, [currentEntry, transcriptionMutation, analysisMutation]);
+  }, [currentEntry, editMutation]);
 
   // Function to analyze entry
   const analyzeEntry = useCallback(async () => {
