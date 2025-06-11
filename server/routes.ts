@@ -762,6 +762,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete endpoint
+  app.post("/api/journal-entries/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const { entryIds } = req.body;
+      
+      if (!Array.isArray(entryIds) || entryIds.length === 0) {
+        return res.status(400).json({ message: "Entry IDs array is required" });
+      }
+
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      for (const entryId of entryIds) {
+        try {
+          // Verify entry belongs to user
+          const entry = await storage.getJournalEntry(entryId);
+          if (!entry || entry.userId !== req.session.userId) {
+            errors.push(`Entry ${entryId} not found or unauthorized`);
+            continue;
+          }
+
+          await storage.deleteJournalEntry(entryId);
+          deletedCount++;
+        } catch (error) {
+          console.error(`Error deleting entry ${entryId}:`, error);
+          errors.push(`Failed to delete entry ${entryId}`);
+        }
+      }
+
+      res.json({ 
+        deletedCount,
+        requestedCount: entryIds.length,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error("Bulk delete error:", error);
+      res.status(500).json({ message: "Failed to delete entries" });
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ 

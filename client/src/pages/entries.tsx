@@ -287,6 +287,24 @@ export default function Entries() {
 
       {/* Entries List */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Select All/None when in select mode */}
+        {isSelectMode && entries.length > 0 && (
+          <div className="flex items-center justify-between mb-4 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={entries.length > 0 && entries.every(entry => selectedEntries.has(entry.id))}
+                onCheckedChange={handleSelectAll}
+              />
+              <span className="text-sm font-medium">
+                Select all entries on this page ({entries.length})
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {selectedEntries.size} of {allEntries?.length || 0} total entries selected
+            </div>
+          </div>
+        )}
+
         {!entries || entries.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -302,17 +320,26 @@ export default function Entries() {
               <Card key={entry.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <Link href={`/entry/${entry.id}`} className="cursor-pointer">
-                        <CardTitle className="text-lg hover:text-[#6366F1] transition-colors">{entry.title}</CardTitle>
-                      </Link>
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {new Date(entry.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+                    <div className="flex items-start gap-3 flex-1">
+                      {isSelectMode && (
+                        <Checkbox
+                          checked={selectedEntries.has(entry.id)}
+                          onCheckedChange={(checked) => handleSelectEntry(entry.id, checked as boolean)}
+                          className="mt-1"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <Link href={`/entry/${entry.id}`} className="cursor-pointer">
+                          <CardTitle className="text-lg hover:text-[#6366F1] transition-colors">{entry.title}</CardTitle>
+                        </Link>
+                        <div className="flex items-center text-sm text-gray-500 mt-1">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
