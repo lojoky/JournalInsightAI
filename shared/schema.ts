@@ -20,6 +20,8 @@ export const journalEntries = pgTable("journal_entries", {
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, failed
   entryDate: timestamp("entry_date"), // Date extracted from journal content
   mergedFromIds: jsonb("merged_from_ids"), // Array of entry IDs that were merged to create this entry
+  imageHash: text("image_hash").unique(), // Perceptual hash of the uploaded image for duplicate detection
+  transcriptHash: text("transcript_hash").unique(), // SHA256 hash of the transcribed text for duplicate detection
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
