@@ -7,7 +7,6 @@ import {
   sentimentAnalysis,
   userIntegrations,
   notionEntries,
-  googleDocs,
   type User, 
   type InsertUser,
   type JournalEntry,
@@ -24,8 +23,6 @@ import {
   type InsertUserIntegration,
   type NotionEntry,
   type InsertNotionEntry,
-  type GoogleDoc,
-  type InsertGoogleDoc,
   type JournalEntryWithDetails
 } from "@shared/schema";
 import { db } from "./db";

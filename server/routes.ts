@@ -12,8 +12,7 @@ import {
   getNotionDatabases 
 } from "./notion";
 import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
-import { syncJournalEntryToGoogleDocs, syncAllUserEntriesToGoogleDocs } from "./google-docs-sync";
-import { getAuthUrl, exchangeCodeForTokens } from "./google-docs";
+// Google Docs integration removed - will be rebuilt
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 

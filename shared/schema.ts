@@ -80,24 +80,13 @@ export const notionEntries = pgTable("notion_entries", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const googleDocs = pgTable("google_docs", {
-  id: serial("id").primaryKey(),
-  journalEntryId: integer("journal_entry_id").notNull(),
-  userId: integer("user_id").notNull(),
-  googleDocId: text("google_doc_id").notNull(),
-  googleFolderId: text("google_folder_id").notNull(),
-  documentUrl: text("document_url").notNull(),
-  syncStatus: text("sync_status").notNull().default("pending"), // pending, synced, failed
-  lastSyncAt: timestamp("last_sync_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Google Docs integration removed - will be rebuilt
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   journalEntries: many(journalEntries),
   userIntegrations: many(userIntegrations),
   notionEntries: many(notionEntries),
-  googleDocs: many(googleDocs),
 }));
 
 export const journalEntriesRelations = relations(journalEntries, ({ one, many }) => ({
@@ -109,7 +98,6 @@ export const journalEntriesRelations = relations(journalEntries, ({ one, many })
   entryTags: many(entryTags),
   sentimentAnalysis: one(sentimentAnalysis),
   notionEntry: one(notionEntries),
-  googleDoc: one(googleDocs),
 }));
 
 export const themesRelations = relations(themes, ({ one }) => ({
@@ -159,16 +147,7 @@ export const notionEntriesRelations = relations(notionEntries, ({ one }) => ({
   }),
 }));
 
-export const googleDocsRelations = relations(googleDocs, ({ one }) => ({
-  user: one(users, {
-    fields: [googleDocs.userId],
-    references: [users.id],
-  }),
-  journalEntry: one(journalEntries, {
-    fields: [googleDocs.journalEntryId],
-    references: [journalEntries.id],
-  }),
-}));
+// Google Docs relations removed
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -229,15 +208,6 @@ export const insertNotionEntrySchema = createInsertSchema(notionEntries).pick({
   syncStatus: true,
 });
 
-export const insertGoogleDocSchema = createInsertSchema(googleDocs).pick({
-  journalEntryId: true,
-  userId: true,
-  googleDocId: true,
-  googleFolderId: true,
-  documentUrl: true,
-  syncStatus: true,
-});
-
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -262,9 +232,6 @@ export type UserIntegration = typeof userIntegrations.$inferSelect;
 
 export type InsertNotionEntry = z.infer<typeof insertNotionEntrySchema>;
 export type NotionEntry = typeof notionEntries.$inferSelect;
-
-export type InsertGoogleDoc = z.infer<typeof insertGoogleDocSchema>;
-export type GoogleDoc = typeof googleDocs.$inferSelect;
 
 // Enhanced types for API responses
 export type JournalEntryWithDetails = JournalEntry & {
