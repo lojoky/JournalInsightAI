@@ -18,6 +18,7 @@ export const journalEntries = pgTable("journal_entries", {
   transcribedText: text("transcribed_text"),
   ocrConfidence: integer("ocr_confidence"), // percentage 0-100
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, failed
+  entryDate: timestamp("entry_date"), // Date extracted from journal content
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
