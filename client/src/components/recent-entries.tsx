@@ -100,21 +100,21 @@ export default function RecentEntries() {
   };
 
   return (
-    <div className="mt-12">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold text-[#111827]">Recent Entries</h3>
+    <div className="mt-8 sm:mt-12">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-[#111827]">Recent Entries</h3>
         <Link href="/entries">
-          <span className="text-[#6366F1] hover:text-indigo-700 font-medium cursor-pointer">
+          <span className="text-[#6366F1] hover:text-indigo-700 font-medium cursor-pointer text-sm sm:text-base">
             View All
           </span>
         </Link>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {entries.map((entry) => (
           <Link key={entry.id} href={`/entry/${entry.id}`}>
             <Card className="journal-card hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-2">
                       {entry.originalImageUrl && (

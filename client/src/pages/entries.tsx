@@ -323,40 +323,61 @@ export default function Entries() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link href="/">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hidden sm:flex">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Dashboard
                 </Button>
+                <Button variant="ghost" size="sm" className="sm:hidden p-2">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-[#111827]">Journal Entries</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-lg sm:text-xl font-semibold text-[#111827]">Journal Entries</h1>
+                <p className="text-xs sm:text-sm text-gray-500">
                   {selectedEntries.size > 0 
-                    ? `${selectedEntries.size} selected • ${allEntries?.length || 0} total entries`
-                    : `${allEntries?.length || 0} total entries`
+                    ? `${selectedEntries.size} selected • ${allEntries?.length || 0} total`
+                    : `${allEntries?.length || 0} entries`
                   }
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
               {!isSelectMode ? (
                 <>
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={toggleSelectMode}
+                    className="hidden sm:flex"
                   >
                     <CheckSquare className="w-4 h-4 mr-2" />
                     Select
                   </Button>
-                  <ExportDialog allEntries={entries}>
-                    <Button className="bg-[#6366F1] hover:bg-indigo-700">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export All
-                    </Button>
-                  </ExportDialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={toggleSelectMode}
+                    className="sm:hidden p-2"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                  </Button>
+                  <div className="hidden sm:block">
+                    <ExportDialog allEntries={entries}>
+                      <Button className="bg-[#6366F1] hover:bg-indigo-700">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export All
+                      </Button>
+                    </ExportDialog>
+                  </div>
+                  <div className="block sm:hidden">
+                    <ExportDialog allEntries={entries}>
+                      <Button className="bg-[#6366F1] hover:bg-indigo-700 p-2">
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </ExportDialog>
+                  </div>
                 </>
               ) : (
                 <>

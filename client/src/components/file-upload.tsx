@@ -61,10 +61,10 @@ export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }:
 
   return (
     <Card className={`journal-card transition-all duration-200 ${isDragActive ? 'drag-over' : ''}`}>
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-8">
         <div 
           {...getRootProps()} 
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200 ${
+          className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-colors duration-200 ${
             isDragActive 
               ? 'border-[#6366F1] bg-indigo-50' 
               : 'border-gray-300 hover:border-[#6366F1] hover:bg-gray-50'
@@ -72,28 +72,31 @@ export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }:
         >
           <input {...getInputProps()} />
           
-          <div className="space-y-4">
-            <div className="w-12 h-12 bg-[#6366F1]/10 rounded-full flex items-center justify-center mx-auto">
-              <CloudUpload className="text-[#6366F1] w-6 h-6" />
+          <div className="space-y-3 sm:space-y-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#6366F1]/10 rounded-full flex items-center justify-center mx-auto">
+              <CloudUpload className="text-[#6366F1] w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold text-[#111827] mb-2">Upload Journal Images</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-[#111827] mb-2">Upload Journal Images</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
                 {isDragActive 
                   ? "Drop your journal images here" 
                   : "Drag and drop your journal images here, or click to browse"
                 }
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
                 Select multiple images for bulk processing or single images for immediate analysis
+              </p>
+              <p className="text-xs text-gray-500 sm:hidden">
+                Multiple images supported
               </p>
             </div>
             
             {!isDragActive && (
               <button 
                 type="button"
-                className="bg-[#6366F1] text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#6366F1] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 disabled={isProcessing}
               >
                 <FileImage className="w-4 h-4 mr-2 inline" />
@@ -101,7 +104,7 @@ export default function FileUpload({ onFileUpload, onBulkUpload, isProcessing }:
               </button>
             )}
             
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               Supports JPG, PNG, HEIC up to 10MB
             </p>
           </div>
