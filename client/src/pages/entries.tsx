@@ -149,6 +149,48 @@ export default function Entries() {
     },
   });
 
+  // Merge entries mutation
+  const mergeMutation = useMutation({
+    mutationFn: async ({ entryIds, mergedTitle, deleteOriginals }: { 
+      entryIds: number[]; 
+      mergedTitle: string; 
+      deleteOriginals: boolean; 
+    }) => {
+      const response = await fetch('/api/journal-entries/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ entryIds, mergedTitle, deleteOriginals }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Entries Merged",
+        description: `Successfully merged ${selectedEntries.size} entries into "${data.mergedEntry.title}"`,
+      });
+      setSelectedEntries(new Set());
+      setIsSelectMode(false);
+      setMergeDialogOpen(false);
+      setMergeTitle("");
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recent-entries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Merge Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditStart = (entry: JournalEntryWithDetails) => {
     setEditingEntry(entry.id);
     setEditText(entry.transcribedText || "");
@@ -210,9 +252,53 @@ export default function Entries() {
     bulkDeleteMutation.mutate(ids);
   };
 
+  const handleMergeEntries = () => {
+    if (selectedEntries.size < 2) {
+      toast({
+        title: "Invalid Selection",
+        description: "Please select at least 2 entries to merge",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Generate default merge title from selected entries
+    const selectedEntryData = Array.from(selectedEntries)
+      .map(id => allEntries?.find(entry => entry.id === id))
+      .filter(Boolean)
+      .sort((a, b) => new Date(a!.createdAt).getTime() - new Date(b!.createdAt).getTime());
+    
+    const defaultTitle = selectedEntryData.length > 0 
+      ? `Merged Entry - ${new Date(selectedEntryData[0]!.createdAt).toLocaleDateString()}`
+      : "Merged Entry";
+    
+    setMergeTitle(defaultTitle);
+    setMergeDialogOpen(true);
+  };
+
+  const confirmMerge = () => {
+    if (!mergeTitle.trim()) {
+      toast({
+        title: "Invalid Title",
+        description: "Please enter a title for the merged entry",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const ids = Array.from(selectedEntries);
+    mergeMutation.mutate({ 
+      entryIds: ids, 
+      mergedTitle: mergeTitle.trim(), 
+      deleteOriginals 
+    });
+  };
+
   const toggleSelectMode = () => {
     setIsSelectMode(!isSelectMode);
     setSelectedEntries(new Set());
+    setMergeDialogOpen(false);
+    setMergeTitle("");
   };
 
   const totalPages = Math.ceil((allEntries?.length || 0) / entriesPerPage);
@@ -274,6 +360,17 @@ export default function Entries() {
                 </>
               ) : (
                 <>
+                  {selectedEntries.size > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleMergeEntries}
+                      disabled={mergeMutation.isPending}
+                    >
+                      <Merge className="w-4 h-4 mr-2" />
+                      Merge {selectedEntries.size}
+                    </Button>
+                  )}
                   {selectedEntries.size > 0 && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -555,6 +652,66 @@ export default function Entries() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Merge Dialog */}
+      <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Merge Journal Entries</DialogTitle>
+            <DialogDescription>
+              Combine {selectedEntries.size} entries into a single journal entry. 
+              All content, tags, and themes will be merged together.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="merge-title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="merge-title"
+                value={mergeTitle}
+                onChange={(e) => setMergeTitle(e.target.value)}
+                className="col-span-3"
+                placeholder="Enter title for merged entry"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">
+                Options
+              </Label>
+              <div className="col-span-3 flex items-center space-x-2">
+                <Checkbox
+                  id="delete-originals"
+                  checked={deleteOriginals}
+                  onCheckedChange={(checked) => setDeleteOriginals(checked as boolean)}
+                />
+                <Label
+                  htmlFor="delete-originals"
+                  className="text-sm font-normal"
+                >
+                  Delete original entries after merging
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMergeDialogOpen(false)}
+              disabled={mergeMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmMerge}
+              disabled={mergeMutation.isPending || !mergeTitle.trim()}
+            >
+              {mergeMutation.isPending ? "Merging..." : "Merge Entries"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
