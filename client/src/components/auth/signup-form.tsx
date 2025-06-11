@@ -64,7 +64,7 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

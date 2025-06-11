@@ -306,13 +306,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.success && result.user) {
         req.session.userId = result.user.id;
         req.session.user = result.user;
-        return res.json({ user: result.user });
+        return res.json({ success: true, user: result.user });
       } else {
-        return res.status(400).json({ message: result.error || "Registration failed" });
+        return res.status(400).json({ success: false, message: result.error || "Registration failed" });
       }
     } catch (error) {
       console.error("Registration error:", error);
-      return res.status(500).json({ message: "Registration failed" });
+      return res.status(500).json({ success: false, message: "Registration failed" });
     }
   });
 
