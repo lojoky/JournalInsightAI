@@ -16,13 +16,16 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#111827] mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Journal AI
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Transform your handwritten thoughts into meaningful insights
           </p>
         </div>
