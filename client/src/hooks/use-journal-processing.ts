@@ -109,13 +109,23 @@ export function useJournalProcessing() {
       setCurrentEntry(newEntry);
       setPollingEntryId(data.id); // Start polling for this entry
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "There was an error uploading your file.",
-        variant: "destructive",
-      });
+      
+      // Handle duplicate detection specifically
+      if (error.response?.status === 400 && error.response?.data?.duplicate) {
+        toast({
+          title: "Duplicate image detected",
+          description: `This image has already been uploaded (Entry ID: ${error.response.data.existingEntryId})`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Upload failed",
+          description: error instanceof Error ? error.message : "There was an error uploading your file.",
+          variant: "destructive",
+        });
+      }
     }
   });
 

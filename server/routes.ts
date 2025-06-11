@@ -705,7 +705,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`OCR completed for entry ${entry.id}, text length: ${ocrResult.text?.length || 0}`);
         
         if (ocrResult.text && ocrResult.text.trim().length > 0) {
-          console.log(`OCR completed for entry ${entry.id}, checking for multiple dates...`);
+          console.log(`OCR completed for entry ${entry.id}, checking for transcript duplicates...`);
+          
+          // Check for transcript duplicates
+          const { computeTranscriptHash } = await import('./image-hash');
+          const transcriptHash = computeTranscriptHash(ocrResult.text);
+          
+          const existingTranscriptEntry = await storage.getJournalEntryByTranscriptHash(transcriptHash);
+          if (existingTranscriptEntry) {
+            console.log(`Duplicate transcript detected for entry ${entry.id} (matches entry ${existingTranscriptEntry.id}), marking as failed`);
+            await storage.updateJournalEntry(entry.id, {
+              processingStatus: "failed",
+              transcribedText: `Duplicate content detected (matches entry ${existingTranscriptEntry.id})`
+            });
+            return;
+          }
+          
+          console.log(`No transcript duplicates found for entry ${entry.id}, checking for multiple dates...`);
           
           // Check for multiple dates and split if needed
           const splitEntries = splitEntriesByDate(ocrResult.text);
@@ -726,7 +742,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: firstAnalysis.title || `Journal Entry - ${formatDateForLog(firstEntry.date)}`,
               transcribedText: firstEntry.content,
               ocrConfidence: ocrResult.confidence,
-              processingStatus: "completed"
+              processingStatus: "completed",
+              transcriptHash
             } as any);
             
             // Process themes, tags, and sentiment for first entry
@@ -737,13 +754,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const splitEntry = splitEntries[j];
               console.log(`Creating new entry for split ${j + 1} with date: ${formatDateForLog(splitEntry.date)}`);
               
+              // Compute hash for each split content
+              const splitTranscriptHash = computeTranscriptHash(splitEntry.content);
+              
               const newEntry = await storage.createJournalEntry({
                 userId: entry.userId,
                 title: `Journal Entry - ${formatDateForLog(splitEntry.date)}`,
                 originalImageUrl: entry.originalImageUrl, // Reuse same image
                 transcribedText: splitEntry.content,
                 ocrConfidence: ocrResult.confidence,
-                processingStatus: "completed"
+                processingStatus: "completed",
+                transcriptHash: splitTranscriptHash
               } as any);
               
               const splitAnalysis = await analyzeJournalEntry(splitEntry.content);
@@ -784,7 +805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: analysisResult.title || entry.title,
               transcribedText: singleEntry.content,
               ocrConfidence: ocrResult.confidence,
-              processingStatus: "completed"
+              processingStatus: "completed",
+              transcriptHash
             } as any);
 
             // Process themes, tags, and sentiment
