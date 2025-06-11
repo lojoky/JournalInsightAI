@@ -7,6 +7,8 @@ import {
   sentimentAnalysis,
   userIntegrations,
   notionEntries,
+  googleDocsCredentials,
+  googleDocsEntries,
   type User, 
   type InsertUser,
   type JournalEntry,
@@ -23,6 +25,10 @@ import {
   type InsertUserIntegration,
   type NotionEntry,
   type InsertNotionEntry,
+  type GoogleDocsCredentials,
+  type InsertGoogleDocsCredentials,
+  type GoogleDocsEntry,
+  type InsertGoogleDocsEntry,
   type JournalEntryWithDetails
 } from "@shared/schema";
 import { db } from "./db";
@@ -372,7 +378,81 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(notionEntries.createdAt));
   }
 
-  // Google Docs methods removed - will be rebuilt
+  // Google Docs Credentials methods
+  async createGoogleDocsCredentials(credentials: InsertGoogleDocsCredentials): Promise<GoogleDocsCredentials> {
+    const [result] = await db
+      .insert(googleDocsCredentials)
+      .values(credentials)
+      .returning();
+    return result;
+  }
+
+  async updateGoogleDocsCredentials(userId: number, updates: Partial<InsertGoogleDocsCredentials>): Promise<GoogleDocsCredentials> {
+    const [result] = await db
+      .update(googleDocsCredentials)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(googleDocsCredentials.userId, userId))
+      .returning();
+    return result;
+  }
+
+  async getGoogleDocsCredentials(userId: number): Promise<GoogleDocsCredentials | undefined> {
+    const [credentials] = await db
+      .select()
+      .from(googleDocsCredentials)
+      .where(eq(googleDocsCredentials.userId, userId));
+    return credentials || undefined;
+  }
+
+  async deleteGoogleDocsCredentials(userId: number): Promise<void> {
+    await db
+      .delete(googleDocsCredentials)
+      .where(eq(googleDocsCredentials.userId, userId));
+  }
+
+  // Google Docs Entries methods
+  async createGoogleDocsEntry(entry: InsertGoogleDocsEntry): Promise<GoogleDocsEntry> {
+    const [result] = await db
+      .insert(googleDocsEntries)
+      .values(entry)
+      .returning();
+    return result;
+  }
+
+  async updateGoogleDocsEntry(id: number, updates: Partial<InsertGoogleDocsEntry>): Promise<GoogleDocsEntry> {
+    const [result] = await db
+      .update(googleDocsEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(googleDocsEntries.id, id))
+      .returning();
+    return result;
+  }
+
+  async getGoogleDocsEntryByJournalId(journalEntryId: number): Promise<GoogleDocsEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(googleDocsEntries)
+      .where(eq(googleDocsEntries.journalEntryId, journalEntryId));
+    return entry || undefined;
+  }
+
+  async getGoogleDocsEntriesByUser(userId: number): Promise<GoogleDocsEntry[]> {
+    return await db
+      .select()
+      .from(googleDocsEntries)
+      .where(eq(googleDocsEntries.userId, userId))
+      .orderBy(desc(googleDocsEntries.createdAt));
+  }
+
+  async getLastGoogleDocsEntryByUser(userId: number): Promise<GoogleDocsEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(googleDocsEntries)
+      .where(eq(googleDocsEntries.userId, userId))
+      .orderBy(desc(googleDocsEntries.createdAt))
+      .limit(1);
+    return entry || undefined;
+  }
 }
 
 export const storage = new DatabaseStorage();

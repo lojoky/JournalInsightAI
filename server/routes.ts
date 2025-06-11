@@ -12,6 +12,8 @@ import {
   getNotionDatabases 
 } from "./notion";
 import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
+import { generateAuthUrl, exchangeCodeForTokens, validateTokens, GOOGLE_SCOPES } from "./google-oauth";
+import { createGoogleDoc, appendToGoogleDoc, listUserGoogleDocs, getGoogleDocInfo } from "./google-docs";
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
@@ -748,17 +750,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Basic Google Docs route - placeholder for rebuild
+  // Google Docs integration routes
   app.get("/api/integrations/google-docs", requireAuth, async (req, res) => {
     try {
-      res.json({ 
-        enabled: false, 
-        configured: false,
-        message: "Google Docs integration will be rebuilt"
+      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
+      
+      if (!credentials) {
+        return res.json({ enabled: false, configured: false });
+      }
+
+      // Check if credentials are still valid
+      const isValid = await validateTokens(credentials);
+      
+      res.json({
+        enabled: true,
+        configured: isValid,
+        needsReauth: !isValid
       });
     } catch (error) {
       console.error("Get Google Docs integration error:", error);
       res.status(500).json({ message: "Failed to get Google Docs integration status" });
+    }
+  });
+
+  app.get("/api/google/auth", requireAuth, async (req, res) => {
+    try {
+      const state = JSON.stringify({ userId: req.session.userId });
+      const authUrl = generateAuthUrl(state);
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Google auth URL generation error:", error);
+      res.status(500).json({ message: "Failed to generate Google auth URL" });
+    }
+  });
+
+  app.get("/api/google/auth/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.redirect("/?error=missing_params");
+      }
+
+      const { userId } = JSON.parse(state as string);
+      const tokens = await exchangeCodeForTokens(code as string);
+
+      // Store credentials in database
+      const credentials = {
+        userId,
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token!,
+        tokenType: tokens.token_type || 'Bearer',
+        expiryDate: new Date(tokens.expiry_date!),
+        scope: GOOGLE_SCOPES.join(' ')
+      };
+
+      // Check if credentials already exist and update or create
+      const existingCredentials = await storage.getGoogleDocsCredentials(userId);
+      
+      if (existingCredentials) {
+        await storage.updateGoogleDocsCredentials(userId, credentials);
+      } else {
+        await storage.createGoogleDocsCredentials(credentials);
+      }
+
+      res.redirect("/settings/integrations?google_connected=true");
+    } catch (error) {
+      console.error("Google auth callback error:", error);
+      res.redirect("/settings/integrations?error=auth_failed");
+    }
+  });
+
+  app.delete("/api/integrations/google-docs", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteGoogleDocsCredentials(req.session.userId!);
+      res.json({ message: "Google Docs integration disconnected" });
+    } catch (error) {
+      console.error("Google Docs disconnect error:", error);
+      res.status(500).json({ message: "Failed to disconnect Google Docs" });
+    }
+  });
+
+  app.get("/api/google-docs/documents", requireAuth, async (req, res) => {
+    try {
+      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
+      
+      if (!credentials) {
+        return res.status(400).json({ message: "Google Docs not connected" });
+      }
+
+      const documents = await listUserGoogleDocs(credentials);
+      res.json({ documents });
+    } catch (error) {
+      console.error("List Google Docs error:", error);
+      res.status(500).json({ message: "Failed to list Google Docs" });
+    }
+  });
+
+  app.post("/api/google-docs/sync", requireAuth, async (req, res) => {
+    try {
+      const { entryId, syncMode, documentId } = req.body;
+      
+      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
+      if (!credentials) {
+        return res.status(400).json({ message: "Google Docs not connected" });
+      }
+
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry || entry.userId !== req.session.userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+
+      let docInfo;
+      
+      if (syncMode === 'new') {
+        // Create new document
+        const title = `Journal Entry - ${entry.title}`;
+        docInfo = await createGoogleDoc(credentials, title);
+        await appendToGoogleDoc(credentials, docInfo.id, entry);
+      } else if (syncMode === 'append' && documentId) {
+        // Append to existing document
+        docInfo = await getGoogleDocInfo(credentials, documentId);
+        await appendToGoogleDoc(credentials, documentId, entry);
+      } else if (syncMode === 'last') {
+        // Append to last used document
+        const lastEntry = await storage.getLastGoogleDocsEntryByUser(req.session.userId!);
+        if (lastEntry) {
+          docInfo = await getGoogleDocInfo(credentials, lastEntry.documentId);
+          await appendToGoogleDoc(credentials, lastEntry.documentId, entry);
+        } else {
+          // Create new if no last document
+          const title = `Journal Entry - ${entry.title}`;
+          docInfo = await createGoogleDoc(credentials, title);
+          await appendToGoogleDoc(credentials, docInfo.id, entry);
+        }
+      }
+
+      if (docInfo) {
+        // Store the Google Docs entry
+        await storage.createGoogleDocsEntry({
+          userId: req.session.userId!,
+          journalEntryId: entryId,
+          documentId: docInfo.id,
+          documentTitle: docInfo.title,
+          documentUrl: docInfo.url
+        });
+
+        res.json({
+          success: true,
+          documentUrl: docInfo.url,
+          documentTitle: docInfo.title
+        });
+      } else {
+        res.status(400).json({ message: "Failed to sync to Google Docs" });
+      }
+    } catch (error) {
+      console.error("Google Docs sync error:", error);
+      res.status(500).json({ message: "Failed to sync to Google Docs" });
     }
   });
 
