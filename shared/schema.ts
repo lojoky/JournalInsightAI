@@ -209,6 +209,8 @@ export const insertJournalEntrySchema = createInsertSchema(journalEntries).pick(
   processingStatus: true,
   entryDate: true,
   mergedFromIds: true,
+  imageHash: true,
+  transcriptHash: true,
 });
 
 export const insertThemeSchema = createInsertSchema(themes).pick({

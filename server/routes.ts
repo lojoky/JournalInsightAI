@@ -79,7 +79,23 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
       const ocrResult = await extractTextFromImage(entry.filePath);
       
       if (ocrResult.text && ocrResult.text.trim().length > 0) {
-        console.log(`OCR completed for entry ${entry.id}, checking for multiple dates...`);
+        console.log(`OCR completed for entry ${entry.id}, checking for transcript duplicates...`);
+        
+        // Check for transcript duplicates
+        const { computeTranscriptHash } = await import('./image-hash');
+        const transcriptHash = computeTranscriptHash(ocrResult.text);
+        
+        const existingTranscriptEntry = await storage.getJournalEntryByTranscriptHash(transcriptHash);
+        if (existingTranscriptEntry) {
+          console.log(`Duplicate transcript detected for entry ${entry.id} (matches entry ${existingTranscriptEntry.id}), marking as failed`);
+          await storage.updateJournalEntry(entry.id, {
+            processingStatus: "failed",
+            transcribedText: `Duplicate content detected (matches entry ${existingTranscriptEntry.id})`
+          });
+          continue;
+        }
+        
+        console.log(`No transcript duplicates found for entry ${entry.id}, checking for multiple dates...`);
         
         // Check for multiple dates and split if needed
         const splitEntries = splitEntriesByDate(ocrResult.text);
@@ -100,7 +116,8 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             title: firstAnalysis.title || `Journal Entry - ${formatDateForLog(firstEntry.date)}`,
             transcribedText: firstEntry.content,
             ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed"
+            processingStatus: "completed",
+            transcriptHash
           } as any);
           
           // Process themes, tags, and sentiment for first entry
@@ -111,13 +128,17 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             const splitEntry = splitEntries[j];
             console.log(`Creating new entry for split ${j + 1} with date: ${formatDateForLog(splitEntry.date)}`);
             
+            // Compute hash for each split content
+            const splitTranscriptHash = computeTranscriptHash(splitEntry.content);
+            
             const newEntry = await storage.createJournalEntry({
               userId: entry.userId,
               title: `Journal Entry - ${formatDateForLog(splitEntry.date)}`,
               originalImageUrl: entry.originalImageUrl, // Reuse same image
               transcribedText: splitEntry.content,
               ocrConfidence: ocrResult.confidence,
-              processingStatus: "completed"
+              processingStatus: "completed",
+              transcriptHash: splitTranscriptHash
             } as any);
             
             const splitAnalysis = await analyzeJournalEntry(splitEntry.content);
@@ -842,9 +863,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Respond immediately with entry IDs for progress tracking
       res.json({ 
-        entries: entries.map(e => ({ ...e, filePath: undefined })),
+        processed: entries.map(e => ({ ...e, filePath: undefined })),
+        skipped_duplicates: skippedDuplicates,
         batchId,
-        message: `${entries.length} files uploaded, processing sequentially...` 
+        message: `${entries.length} files uploaded${skippedDuplicates.length > 0 ? `, ${skippedDuplicates.length} duplicates skipped` : ''}, processing sequentially...` 
       });
 
       // Process files sequentially in background
