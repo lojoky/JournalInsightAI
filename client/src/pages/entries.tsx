@@ -20,6 +20,7 @@ export default function Entries() {
   const [editText, setEditText] = useState("");
   const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -161,6 +162,22 @@ export default function Entries() {
   const handleDelete = (id: number) => {
     console.log(`Attempting to delete entry ${id}`);
     deleteMutation.mutate(id);
+  };
+
+  const handleDeleteClick = (id: number) => {
+    console.log(`Delete button clicked for entry ${id}`);
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirmId) {
+      handleDelete(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmId(null);
   };
 
   const handleSelectEntry = (id: number, checked: boolean) => {
@@ -394,42 +411,17 @@ export default function Entries() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log(`Delete button clicked for entry ${entry.id}`);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Entry</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this journal entry? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      console.log(`Confirmed delete for entry ${entry.id}`);
-                                      handleDelete(entry.id);
-                                    }}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteClick(entry.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
                           </>
                         )}
                       </div>
@@ -535,6 +527,28 @@ export default function Entries() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && cancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this journal entry? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
