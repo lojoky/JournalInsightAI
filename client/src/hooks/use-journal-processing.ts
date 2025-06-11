@@ -318,6 +318,15 @@ export function useJournalProcessing() {
       const response = await apiRequest('POST', '/api/upload-bulk', formData);
       const result = await response.json();
       
+      // Show notification about skipped duplicates if any
+      if (result.skipped_duplicates && result.skipped_duplicates.length > 0) {
+        toast({
+          title: "Duplicate files detected",
+          description: `${result.skipped_duplicates.length} duplicate files were skipped: ${result.skipped_duplicates.slice(0, 3).join(', ')}${result.skipped_duplicates.length > 3 ? '...' : ''}`,
+          variant: "default",
+        });
+      }
+      
       if (result.batchId) {
         // Start polling for progress
         const progressInterval = setInterval(async () => {

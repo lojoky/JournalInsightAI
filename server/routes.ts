@@ -192,7 +192,8 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             title: analysisResult.title || entry.title,
             transcribedText: singleEntry.content,
             ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed"
+            processingStatus: "completed",
+            transcriptHash
           } as any);
 
           // Process themes, tags, and sentiment
@@ -643,6 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/upload", requireAuth, upload.single('journal'), async (req, res) => {
+    let entry;
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -655,16 +657,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = path.basename(req.file.path);
       const webImageUrl = `/uploads/${filename}`;
 
-      const entry = await storage.createJournalEntry({
-        userId,
-        title: title || "Untitled Entry",
-        originalImageUrl: webImageUrl,
-        transcribedText: "",
-        ocrConfidence: 0,
-        processingStatus: "processing"
-      });
+      // Check for duplicate image
+      let imageHash;
+      try {
+        const { computeImageHash } = await import('./image-hash');
+        imageHash = await computeImageHash(req.file.path);
+        
+        const existingEntry = await storage.getJournalEntryByImageHash(imageHash);
+        if (existingEntry) {
+          return res.status(400).json({ 
+            message: "Duplicate image detected",
+            duplicate: true,
+            existingEntryId: existingEntry.id
+          });
+        }
 
-      res.json(entry);
+        entry = await storage.createJournalEntry({
+          userId,
+          title: title || "Untitled Entry",
+          originalImageUrl: webImageUrl,
+          transcribedText: "",
+          ocrConfidence: 0,
+          processingStatus: "processing",
+          imageHash
+        });
+
+        res.json(entry);
+      } catch (hashError) {
+        console.error(`Error computing hash for ${req.file.originalname}:`, hashError);
+        // If hashing fails, proceed without hash
+        entry = await storage.createJournalEntry({
+          userId,
+          title: title || "Untitled Entry",
+          originalImageUrl: webImageUrl,
+          transcribedText: "",
+          ocrConfidence: 0,
+          processingStatus: "processing"
+        });
+
+        res.json(entry);
+      }
 
       // Process asynchronously
       try {
