@@ -206,6 +206,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/journal-entries/:id", requireAuth, async (req, res) => {
+    console.log(`PATCH request received for entry ${req.params.id}`);
+    console.log(`Request body:`, req.body);
+    console.log(`Content-Type:`, req.headers['content-type']);
+    
+    try {
+      const id = parseInt(req.params.id);
+      const { title, transcribedText } = req.body;
+      
+      if (!transcribedText || typeof transcribedText !== 'string') {
+        console.log(`Validation failed: transcribedText missing or invalid`);
+        return res.status(400).json({ message: "Transcribed text is required" });
+      }
+      
+      const entry = await storage.getJournalEntry(id);
+      if (!entry || entry.userId !== req.session.userId) {
+        console.log(`Entry not found or access denied for entry ${id}`);
+        return res.status(404).json({ message: "Entry not found" });
+      }
+
+      console.log(`Updating entry ${id} with new text of length ${transcribedText.length}`);
+      const updatedEntry = await storage.updateJournalEntry(id, {
+        title,
+        transcribedText: transcribedText.trim()
+      });
+
+      console.log(`Entry ${id} updated successfully`);
+      res.json({
+        message: "Entry updated successfully",
+        entry: updatedEntry
+      });
+    } catch (error) {
+      console.error("Edit entry error:", error);
+      res.status(500).json({ message: "Failed to edit journal entry" });
+    }
+  });
+
   app.post("/api/journal-entries/:id/edit", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
