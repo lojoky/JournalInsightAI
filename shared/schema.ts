@@ -19,6 +19,7 @@ export const journalEntries = pgTable("journal_entries", {
   ocrConfidence: integer("ocr_confidence"), // percentage 0-100
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, failed
   entryDate: timestamp("entry_date"), // Date extracted from journal content
+  mergedFromIds: jsonb("merged_from_ids"), // Array of entry IDs that were merged to create this entry
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
