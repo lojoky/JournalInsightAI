@@ -100,9 +100,8 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             title: firstAnalysis.title || `Journal Entry - ${formatDateForLog(firstEntry.date)}`,
             transcribedText: firstEntry.content,
             ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed",
-            entryDate: firstEntry.date
-          });
+            processingStatus: "completed"
+          } as any);
           
           // Process themes, tags, and sentiment for first entry
           await processEntryAnalysis(entry.id, firstAnalysis, firstSentiment);
@@ -118,9 +117,8 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
               originalImageUrl: entry.originalImageUrl, // Reuse same image
               transcribedText: splitEntry.content,
               ocrConfidence: ocrResult.confidence,
-              processingStatus: "completed",
-              entryDate: splitEntry.date
-            });
+              processingStatus: "completed"
+            } as any);
             
             const splitAnalysis = await analyzeJournalEntry(splitEntry.content);
             const splitSentiment = await analyzeSentiment(splitEntry.content);
@@ -169,9 +167,8 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
             title: analysisResult.title || entry.title,
             transcribedText: singleEntry.content,
             ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed",
-            entryDate: singleEntry.date
-          });
+            processingStatus: "completed"
+          } as any);
 
           // Process themes, tags, and sentiment
           await processEntryAnalysis(entry.id, analysisResult, sentimentResult);
