@@ -12,6 +12,21 @@ app.use(express.urlencoded({ extended: false }));
 
 // Session configuration
 const PgSession = ConnectPgSimple(session);
+
+// Determine if we're in production - check multiple environment indicators
+const isProduction = process.env.NODE_ENV === 'production' || 
+                    process.env.REPLIT_DEPLOYMENT === '1' ||
+                    process.env.REPL_DEPLOYMENT === '1' ||
+                    process.env.REPLIT_ENVIRONMENT === 'production';
+
+console.log("Server starting in mode:", {
+  isProduction,
+  NODE_ENV: process.env.NODE_ENV,
+  REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
+  REPL_DEPLOYMENT: process.env.REPL_DEPLOYMENT,
+  REPLIT_ENVIRONMENT: process.env.REPLIT_ENVIRONMENT
+});
+
 app.use(session({
   store: new PgSession({
     pool: pool,
@@ -22,10 +37,11 @@ app.use(session({
   saveUninitialized: false,
   name: 'connect.sid',
   cookie: {
-    secure: false,
+    secure: isProduction, // Use secure cookies in production
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: 'lax'
+    sameSite: isProduction ? 'none' : 'lax', // Allow cross-site cookies in production for OAuth
+    domain: isProduction ? '.replit.app' : undefined
   }
 }));
 

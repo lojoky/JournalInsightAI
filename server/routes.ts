@@ -817,8 +817,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/auth/callback", async (req, res) => {
     try {
       console.log("=== Google OAuth Callback Debug ===");
+      console.log("Environment:", {
+        NODE_ENV: process.env.NODE_ENV,
+        REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
+        host: req.get('host'),
+        protocol: req.protocol
+      });
       console.log("Query params:", req.query);
-      console.log("Headers:", req.headers);
+      console.log("User agent:", req.get('user-agent'));
+      console.log("Referer:", req.get('referer'));
       
       const { code, state, error } = req.query;
       
@@ -833,8 +840,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Parsing state:", state);
-      const { userId } = JSON.parse(state as string);
-      console.log("User ID from state:", userId);
+      let userId;
+      try {
+        const parsedState = JSON.parse(state as string);
+        userId = parsedState.userId;
+        console.log("User ID from state:", userId);
+      } catch (parseError) {
+        console.error("Failed to parse state:", parseError);
+        return res.redirect("/settings/integrations?error=invalid_state");
+      }
+      
+      if (!userId) {
+        console.error("No userId found in state");
+        return res.redirect("/settings/integrations?error=no_user_id");
+      }
       
       console.log("Exchanging code for tokens...");
       const tokens = await exchangeCodeForTokens(code as string);
@@ -844,13 +863,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiryDate: tokens.expiry_date 
       });
 
+      if (!tokens.access_token) {
+        console.error("No access token received");
+        return res.redirect("/settings/integrations?error=no_access_token");
+      }
+
+      if (!tokens.refresh_token) {
+        console.error("No refresh token received - user may need to revoke and re-authorize");
+        return res.redirect("/settings/integrations?error=no_refresh_token");
+      }
+
       // Store credentials in database
       const credentials = {
         userId,
-        accessToken: tokens.access_token!,
-        refreshToken: tokens.refresh_token!,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
         tokenType: tokens.token_type || 'Bearer',
-        expiryDate: new Date(tokens.expiry_date!),
+        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600000),
         scope: GOOGLE_SCOPES.join(' ')
       };
 
@@ -859,7 +888,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (existingCredentials) {
         console.log("Updating existing credentials");
-        await storage.updateGoogleDocsCredentials(userId, credentials);
+        await storage.updateGoogleDocsCredentials(userId, {
+          accessToken: credentials.accessToken,
+          refreshToken: credentials.refreshToken,
+          tokenType: credentials.tokenType,
+          expiryDate: credentials.expiryDate,
+          scope: credentials.scope
+        });
       } else {
         console.log("Creating new credentials");
         await storage.createGoogleDocsCredentials(credentials);
@@ -869,7 +904,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.redirect("/settings/integrations?google_connected=true");
     } catch (error) {
       console.error("Google auth callback error:", error);
-      res.redirect("/settings/integrations?error=auth_failed");
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.redirect("/settings/integrations?error=auth_failed&details=" + encodeURIComponent(error instanceof Error ? error.message : 'Unknown error'));
     }
   });
 
