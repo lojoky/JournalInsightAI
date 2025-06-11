@@ -10,29 +10,44 @@ import type { JournalEntryWithDetails } from "@shared/schema";
 
 interface ExportDialogProps {
   children: React.ReactNode;
+  selectedEntries?: Set<number>;
+  allEntries?: JournalEntryWithDetails[];
 }
 
-export default function ExportDialog({ children }: ExportDialogProps) {
+export default function ExportDialog({ children, selectedEntries, allEntries }: ExportDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"docx" | "html">("docx");
   const [dateRange, setDateRange] = useState<"all" | "last30" | "last90">("all");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
-  const { data: entries } = useQuery<JournalEntryWithDetails[]>({
+  const { data: fetchedEntries } = useQuery<JournalEntryWithDetails[]>({
     queryKey: ["/api/journal-entries"],
+    enabled: !allEntries, // Only fetch if not provided via props
   });
 
-  const filteredEntries = entries?.filter(entry => {
-    if (dateRange === "all") return true;
-    
-    const entryDate = new Date(entry.createdAt);
-    const now = new Date();
-    const daysAgo = dateRange === "last30" ? 30 : 90;
-    const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
-    
-    return entryDate >= cutoffDate;
-  }) || [];
+  // Use provided entries or fetched entries
+  const entries = allEntries || fetchedEntries || [];
+
+  // If we have selected entries, use those; otherwise apply date filter
+  const filteredEntries = selectedEntries && selectedEntries.size > 0
+    ? entries.filter(entry => selectedEntries.has(entry.id))
+    : entries.filter(entry => {
+        if (dateRange === "all") return true;
+        
+        const entryDate = new Date(entry.createdAt);
+        const now = new Date();
+        const daysAgo = dateRange === "last30" ? 30 : 90;
+        const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+        
+        return entryDate >= cutoffDate;
+      });
+
+  // Remove emoji utility function
+  const removeEmojis = (text: string) => {
+    // Simple approach to remove most emojis and special characters
+    return text.replace(/[^\w\s\.,!?;:()\[\]{}"'-]/g, '').trim();
+  };
 
   const generateHTMLDocument = () => {
     const formatDate = (dateString: string) => {
@@ -60,109 +75,35 @@ export default function ExportDialog({ children }: ExportDialogProps) {
             color: #333;
         }
         h1 {
-            color: #6366F1;
+            color: #333;
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #6366F1;
+            border-bottom: 2px solid #333;
             padding-bottom: 10px;
         }
         .entry {
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             page-break-inside: avoid;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            background: #f9fafb;
-        }
-        .entry-header {
-            margin-bottom: 15px;
-            border-bottom: 1px solid #d1d5db;
-            padding-bottom: 10px;
-        }
-        .entry-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #111827;
-            margin-bottom: 5px;
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
         }
         .entry-date {
-            color: #6b7280;
-            font-style: italic;
+            color: #666;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
         }
         .entry-content {
-            margin: 15px 0;
             line-height: 1.8;
-        }
-        .transcribed-text {
-            background: white;
-            padding: 15px;
-            border-left: 4px solid #6366F1;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
-        .themes {
-            margin: 20px 0;
-        }
-        .theme {
-            background: #ede9fe;
-            padding: 10px;
-            margin: 8px 0;
-            border-radius: 4px;
-            border-left: 3px solid #8b5cf6;
-        }
-        .theme-title {
-            font-weight: bold;
-            color: #7c3aed;
-        }
-        .tags {
-            margin: 15px 0;
-        }
-        .tag {
-            display: inline-block;
-            background: #e0e7ff;
-            color: #3730a3;
-            padding: 4px 8px;
-            margin: 2px;
-            border-radius: 12px;
-            font-size: 12px;
-        }
-        .sentiment {
-            background: #f0f9ff;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border-left: 3px solid #0ea5e9;
-        }
-        .reflection-questions {
-            background: #fef3c7;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-        }
-        .reflection-questions h4 {
-            color: #92400e;
-            margin-bottom: 10px;
-        }
-        .reflection-questions ul {
-            list-style-type: none;
-            padding-left: 0;
-        }
-        .reflection-questions li {
-            margin: 8px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-        .reflection-questions li:before {
-            content: "💭";
-            position: absolute;
-            left: 0;
+            margin-bottom: 15px;
         }
         .export-info {
             text-align: center;
             margin: 30px 0;
-            color: #6b7280;
+            color: #666;
             border-top: 1px solid #e5e7eb;
             padding-top: 20px;
+            font-size: 14px;
         }
         @media print {
             body { margin: 0; padding: 15px; }
@@ -171,7 +112,7 @@ export default function ExportDialog({ children }: ExportDialogProps) {
     </style>
 </head>
 <body>
-    <h1>📖 Journal Entries Collection</h1>
+    <h1>Journal Entries</h1>
     <div class="export-info">
         <p>Exported on ${new Date().toLocaleDateString('en-US', { 
           weekday: 'long', 
