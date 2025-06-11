@@ -58,11 +58,9 @@ export default function Settings() {
                 <h4 className="text-sm font-medium text-gray-900">Google Docs</h4>
                 <p className="text-sm text-gray-500">Add all journal entries to a single shared Google Doc in your Drive folder</p>
               </div>
-              <GoogleDocsConfigDialog>
-                <Button variant="outline" size="sm">
-                  Configure
-                </Button>
-              </GoogleDocsConfigDialog>
+              <Button variant="outline" size="sm" disabled>
+                Coming Soon
+              </Button>
             </div>
           </CardContent>
         </Card>
