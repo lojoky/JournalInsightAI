@@ -773,35 +773,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/google/auth", async (req, res) => {
+  app.get("/api/google/auth", requireAuth, async (req, res) => {
     try {
       console.log("=== Starting Google OAuth Flow ===");
-      console.log("Session data:", {
-        hasSession: !!req.session,
-        userId: req.session?.userId,
-        sessionId: req.sessionID,
-        cookies: req.headers.cookie
-      });
-      
-      // Check authentication manually for better debugging
-      if (!req.session?.userId) {
-        console.log("No authenticated session found");
-        return res.status(401).json({ 
-          message: "Authentication required",
-          debug: {
-            hasSession: !!req.session,
-            sessionId: req.sessionID,
-            userId: req.session?.userId
-          }
-        });
-      }
+      console.log("Authenticated user ID:", req.session.userId);
       
       const state = JSON.stringify({ userId: req.session.userId });
       const authUrl = generateAuthUrl(state);
       
       console.log("Generated auth URL:", authUrl);
       console.log("State parameter:", state);
-      console.log("Expected redirect URI:", 'https://journal-ai-insights.replit.app/api/google/auth/callback');
       
       res.json({ authUrl });
     } catch (error) {
