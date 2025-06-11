@@ -109,8 +109,8 @@ export default function Entries() {
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      const response = await fetch('/api/journal-entries/bulk-delete', {
-        method: 'POST',
+      const response = await fetch('/api/journal-entries/bulk', {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ entryIds: ids }),
