@@ -33,6 +33,38 @@
   --journal-accent: hsl(38, 92%, 50%);
 }
 
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Improve touch targets */
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for mobile */
+  .mobile-spacing {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Prevent text from being too small on mobile */
+  body {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Better tap targets for buttons */
+  button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* Smooth scrolling for mobile */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 .dark {
   --background: hsl(240, 10%, 3.9%);
   --foreground: hsl(0, 0%, 98%);
