@@ -29,9 +29,12 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
+// In-memory batch tracking
+const activeBatches = new Map<string, number[]>();
+
 // Sequential bulk processing function
-async function processBulkEntriesSequentially(entries: any[], userId: number) {
-  console.log(`Starting sequential processing of ${entries.length} entries for user ${userId}`);
+async function processBulkEntriesSequentially(entries: any[], userId: number, batchId: string) {
+  console.log(`Starting sequential processing of ${entries.length} entries for user ${userId}, batch ${batchId}`);
   
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -111,7 +114,9 @@ async function processBulkEntriesSequentially(entries: any[], userId: number) {
     }
   }
   
-  console.log(`Bulk processing completed for user ${userId}`);
+  // Clean up batch tracking when complete
+  activeBatches.delete(batchId);
+  console.log(`Bulk processing completed for user ${userId}, batch ${batchId}`);
 }
 
 // Configure multer for file uploads
@@ -518,6 +523,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entries.push({ ...entry, filePath: file.path });
       }
 
+      // Store batch info for progress tracking
+      const entryIds = entries.map(e => e.id);
+      activeBatches.set(batchId, entryIds);
+
       // Respond immediately with entry IDs for progress tracking
       res.json({ 
         entries: entries.map(e => ({ ...e, filePath: undefined })),
@@ -526,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process files sequentially in background
-      processBulkEntriesSequentially(entries, userId);
+      processBulkEntriesSequentially(entries, userId, batchId);
 
     } catch (error) {
       console.error("Bulk upload error:", error);
@@ -537,26 +546,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Progress tracking endpoint
   app.get("/api/bulk-progress/:batchId", requireAuth, async (req, res) => {
     try {
+      const { batchId } = req.params;
       const userId = req.session.userId!;
       
-      // Get recent entries from last 30 minutes for this user
-      const recentEntries = await storage.getJournalEntriesByUser(userId, 100);
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      // Get the specific entry IDs for this batch
+      const batchEntryIds = activeBatches.get(batchId);
       
-      const batchEntries = recentEntries.filter(entry => 
-        new Date(entry.createdAt) > thirtyMinutesAgo
-      );
+      if (!batchEntryIds) {
+        // Batch not found or completed, return completed status
+        return res.json({
+          total: 0,
+          completed: 0,
+          failed: 0,
+          processing: 0,
+          progress: 100
+        });
+      }
       
-      const completed = batchEntries.filter(e => e.processingStatus === 'completed').length;
-      const failed = batchEntries.filter(e => e.processingStatus === 'failed').length;
-      const processing = batchEntries.filter(e => e.processingStatus === 'processing').length;
+      // Get the current status of each entry in this batch
+      let completed = 0;
+      let failed = 0;
+      let processing = 0;
+      
+      for (const entryId of batchEntryIds) {
+        try {
+          const entry = await storage.getJournalEntry(entryId);
+          if (entry && entry.userId === userId) {
+            switch (entry.processingStatus) {
+              case 'completed':
+                completed++;
+                break;
+              case 'failed':
+                failed++;
+                break;
+              case 'processing':
+              default:
+                processing++;
+                break;
+            }
+          }
+        } catch (entryError) {
+          console.error(`Error checking entry ${entryId}:`, entryError);
+          failed++;
+        }
+      }
+      
+      const total = batchEntryIds.length;
+      const progress = total > 0 ? Math.round((completed + failed) / total * 100) : 100;
       
       res.json({
-        total: batchEntries.length,
+        total,
         completed,
         failed,
         processing,
-        progress: batchEntries.length > 0 ? Math.round((completed + failed) / batchEntries.length * 100) : 100
+        progress
       });
     } catch (error) {
       console.error("Progress tracking error:", error);
