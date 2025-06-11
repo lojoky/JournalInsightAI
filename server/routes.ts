@@ -273,13 +273,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.success && result.user) {
         req.session.userId = result.user.id;
         req.session.user = result.user;
-        return res.json({ user: result.user });
+        return res.json({ success: true, user: result.user });
       } else {
-        return res.status(401).json({ message: result.error || "Invalid credentials" });
+        return res.status(401).json({ success: false, message: result.error || "Invalid credentials" });
       }
     } catch (error) {
       console.error("Login error:", error);
-      return res.status(500).json({ message: "Login failed" });
+      return res.status(500).json({ success: false, message: "Login failed" });
     }
   });
 
