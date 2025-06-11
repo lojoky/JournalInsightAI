@@ -132,12 +132,6 @@ export default function EntryDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <GoogleDocsSync entryId={entry.id} entryTitle={entry.title}>
-                <Button variant="outline" size="sm">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Sync to Google Docs
-                </Button>
-              </GoogleDocsSync>
               <Badge 
                 variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
                 className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}

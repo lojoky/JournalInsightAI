@@ -12,8 +12,7 @@ import {
   getNotionDatabases 
 } from "./notion";
 import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
-import { generateAuthUrl, exchangeCodeForTokens, validateTokens, GOOGLE_SCOPES, createGoogleOAuthClient } from "./google-oauth";
-import { createGoogleDoc, appendToGoogleDoc, listUserGoogleDocs, getGoogleDocInfo } from "./google-docs";
+
 import { 
   insertJournalEntrySchema, 
   insertThemeSchema, 
@@ -750,10 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google Docs integration routes
-  app.get("/api/integrations/google-docs", requireAuth, async (req, res) => {
     try {
-      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
       
       if (!credentials) {
         return res.json({ enabled: false, configured: false });
@@ -768,14 +764,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         needsReauth: !isValid
       });
     } catch (error) {
-      console.error("Get Google Docs integration error:", error);
-      res.status(500).json({ message: "Failed to get Google Docs integration status" });
     }
   });
 
-  app.get("/api/google/auth", requireAuth, async (req, res) => {
     try {
-      console.log("=== Starting Google OAuth Flow ===");
       console.log("Authenticated user ID:", req.session.userId);
       
       const state = JSON.stringify({ userId: req.session.userId });
@@ -786,13 +778,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ authUrl });
     } catch (error) {
-      console.error("Google auth URL generation error:", error);
-      res.status(500).json({ message: "Failed to generate Google auth URL" });
     }
   });
 
   // Test endpoint to verify callback URL is accessible
-  app.get("/api/google/auth/callback/test", async (req, res) => {
     console.log("Test callback endpoint hit");
     res.json({
       message: "Callback URL is accessible",
@@ -803,20 +792,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Additional debug route to check current OAuth configuration
-  app.get("/api/google/debug", async (req, res) => {
-    const oauth2Client = createGoogleOAuthClient();
     res.json({
-      redirectUri: 'https://journal-ai-insights.replit.app/api/google/auth/callback',
-      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
       replitDomains: process.env.REPLIT_DOMAINS,
       currentHost: req.get('host')
     });
   });
 
-  app.get("/api/google/auth/callback", async (req, res) => {
     try {
-      console.log("=== Google OAuth Callback Debug ===");
       console.log("Environment:", {
         NODE_ENV: process.env.NODE_ENV,
         REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
@@ -830,7 +812,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { code, state, error } = req.query;
       
       if (error) {
-        console.error("OAuth error from Google:", error);
         return res.redirect("/settings/integrations?error=" + encodeURIComponent(error as string));
       }
       
@@ -880,15 +861,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         refreshToken: tokens.refresh_token,
         tokenType: tokens.token_type || 'Bearer',
         expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600000),
-        scope: GOOGLE_SCOPES.join(' ')
       };
 
       console.log("Checking for existing credentials...");
-      const existingCredentials = await storage.getGoogleDocsCredentials(userId);
       
       if (existingCredentials) {
         console.log("Updating existing credentials");
-        await storage.updateGoogleDocsCredentials(userId, {
           accessToken: credentials.accessToken,
           refreshToken: credentials.refreshToken,
           tokenType: credentials.tokenType,
@@ -897,51 +875,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else {
         console.log("Creating new credentials");
-        await storage.createGoogleDocsCredentials(credentials);
       }
 
       console.log("Credentials saved successfully, redirecting...");
-      res.redirect("/settings/integrations?google_connected=true");
     } catch (error) {
-      console.error("Google auth callback error:", error);
       console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       res.redirect("/settings/integrations?error=auth_failed&details=" + encodeURIComponent(error instanceof Error ? error.message : 'Unknown error'));
     }
   });
 
-  app.delete("/api/integrations/google-docs", requireAuth, async (req, res) => {
     try {
-      await storage.deleteGoogleDocsCredentials(req.session.userId!);
-      res.json({ message: "Google Docs integration disconnected" });
     } catch (error) {
-      console.error("Google Docs disconnect error:", error);
-      res.status(500).json({ message: "Failed to disconnect Google Docs" });
     }
   });
 
-  app.get("/api/google-docs/documents", requireAuth, async (req, res) => {
     try {
-      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
       
       if (!credentials) {
-        return res.status(400).json({ message: "Google Docs not connected" });
       }
 
-      const documents = await listUserGoogleDocs(credentials);
       res.json({ documents });
     } catch (error) {
-      console.error("List Google Docs error:", error);
-      res.status(500).json({ message: "Failed to list Google Docs" });
     }
   });
 
-  app.post("/api/google-docs/sync", requireAuth, async (req, res) => {
     try {
       const { entryId, syncMode, documentId } = req.body;
       
-      const credentials = await storage.getGoogleDocsCredentials(req.session.userId!);
       if (!credentials) {
-        return res.status(400).json({ message: "Google Docs not connected" });
       }
 
       const entry = await storage.getJournalEntry(entryId);
@@ -954,29 +915,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (syncMode === 'new') {
         // Create new document
         const title = `Journal Entry - ${entry.title}`;
-        docInfo = await createGoogleDoc(credentials, title);
-        await appendToGoogleDoc(credentials, docInfo.id, entry);
       } else if (syncMode === 'append' && documentId) {
         // Append to existing document
-        docInfo = await getGoogleDocInfo(credentials, documentId);
-        await appendToGoogleDoc(credentials, documentId, entry);
       } else if (syncMode === 'last') {
         // Append to last used document
-        const lastEntry = await storage.getLastGoogleDocsEntryByUser(req.session.userId!);
         if (lastEntry) {
-          docInfo = await getGoogleDocInfo(credentials, lastEntry.documentId);
-          await appendToGoogleDoc(credentials, lastEntry.documentId, entry);
         } else {
           // Create new if no last document
           const title = `Journal Entry - ${entry.title}`;
-          docInfo = await createGoogleDoc(credentials, title);
-          await appendToGoogleDoc(credentials, docInfo.id, entry);
         }
       }
 
       if (docInfo) {
-        // Store the Google Docs entry
-        await storage.createGoogleDocsEntry({
           userId: req.session.userId!,
           journalEntryId: entryId,
           documentId: docInfo.id,
@@ -990,11 +940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           documentTitle: docInfo.title
         });
       } else {
-        res.status(400).json({ message: "Failed to sync to Google Docs" });
       }
     } catch (error) {
-      console.error("Google Docs sync error:", error);
-      res.status(500).json({ message: "Failed to sync to Google Docs" });
     }
   });
 
