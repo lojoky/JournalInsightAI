@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare } from "lucide-react";
 import { Link } from "wouter";
 import type { JournalEntryWithDetails } from "@shared/schema";
-import EditableTranscription from "@/components/editable-transcription";
 
 export default function EntryDetail() {
   const [match, params] = useRoute("/entry/:id");
@@ -104,28 +103,30 @@ export default function EntryDetail() {
         )}
 
         {/* Transcribed Text */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <MessageSquare className="w-5 h-5 mr-2" />
-                Journal Text
+        {entry.transcribedText && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2" />
+                  Extracted Text
+                </div>
+                {entry.ocrConfidence && (
+                  <Badge variant="outline">
+                    {entry.ocrConfidence}% confidence
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {entry.transcribedText}
+                </p>
               </div>
-              {entry.ocrConfidence && (
-                <Badge variant="outline">
-                  {entry.ocrConfidence}% confidence
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EditableTranscription 
-              entryId={entry.id}
-              initialText={entry.transcribedText || ""}
-              className="bg-gray-50 p-4 rounded-lg"
-            />
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Themes */}
         {entry.themes && entry.themes.length > 0 && (

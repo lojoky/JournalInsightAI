@@ -80,6 +80,8 @@ export const notionEntries = pgTable("notion_entries", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Google Docs integration removed - will be rebuilt
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   journalEntries: many(journalEntries),
@@ -144,6 +146,8 @@ export const notionEntriesRelations = relations(notionEntries, ({ one }) => ({
     references: [journalEntries.id],
   }),
 }));
+
+// Google Docs relations removed
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({

@@ -1,17 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X } from "lucide-react";
 import { Link } from "wouter";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import ExportDialog from "@/components/export-dialog";
-import EditableTranscription from "@/components/editable-transcription";
+// Google Docs integration removed - will be rebuilt
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Entries() {
   const [page, setPage] = useState(1);
   const entriesPerPage = 20;
+  const [editingEntry, setEditingEntry] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: allEntries, isLoading } = useQuery({
     queryKey: ['/api/journal-entries'],
@@ -20,6 +27,92 @@ export default function Entries() {
       return response.json() as Promise<JournalEntryWithDetails[]>;
     }
   });
+
+  // Edit entry mutation
+  const editMutation = useMutation({
+    mutationFn: async ({ id, transcribedText }: { id: number; transcribedText: string }) => {
+      const response = await fetch(`/api/journal-entries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ transcribedText }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry Updated",
+        description: "Your journal entry has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      setEditingEntry(null);
+      setEditText("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete entry mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/journal-entries/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry Deleted",
+        description: "Your journal entry has been deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditStart = (entry: JournalEntryWithDetails) => {
+    setEditingEntry(entry.id);
+    setEditText(entry.transcribedText || "");
+  };
+
+  const handleEditSave = () => {
+    if (editingEntry) {
+      editMutation.mutate({ id: editingEntry, transcribedText: editText });
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingEntry(null);
+    setEditText("");
+  };
+
+  const handleDelete = (id: number) => {
+    deleteMutation.mutate(id);
+  };
 
   const totalPages = Math.ceil((allEntries?.length || 0) / entriesPerPage);
   const startIndex = (page - 1) * entriesPerPage;
@@ -55,12 +148,15 @@ export default function Entries() {
                 <p className="text-sm text-gray-500">{allEntries?.length || 0} total entries</p>
               </div>
             </div>
-            <ExportDialog>
-              <Button className="bg-[#6366F1] hover:bg-indigo-700">
-                <Download className="w-4 h-4 mr-2" />
-                Export All
-              </Button>
-            </ExportDialog>
+            <div className="flex items-center gap-3">
+              {/* Google Docs integration will be rebuilt */}
+              <ExportDialog>
+                <Button className="bg-[#6366F1] hover:bg-indigo-700">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export All
+                </Button>
+              </ExportDialog>
+            </div>
           </div>
         </div>
       </div>
@@ -82,38 +178,112 @@ export default function Entries() {
               <Card key={entry.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <Link href={`/entry/${entry.id}`} className="flex-1">
-                      <div>
-                        <CardTitle className="text-lg hover:text-[#6366F1] cursor-pointer">{entry.title}</CardTitle>
-                        <div className="flex items-center text-sm text-gray-500 mt-1">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {new Date(entry.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </div>
+                    <div className="flex-1">
+                      <Link href={`/entry/${entry.id}`} className="cursor-pointer">
+                        <CardTitle className="text-lg hover:text-[#6366F1] transition-colors">{entry.title}</CardTitle>
+                      </Link>
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
                       </div>
-                    </Link>
-                    <Badge 
-                      variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
-                      className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
-                    >
-                      {entry.processingStatus}
-                    </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
+                        className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                      >
+                        {entry.processingStatus}
+                      </Badge>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1">
+                        {editingEntry === entry.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleEditSave}
+                              disabled={editMutation.isPending}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleEditCancel}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleEditStart(entry);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this journal entry? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(entry.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {entry.transcribedText ? (
-                    <div className="mb-4">
-                      <EditableTranscription 
-                        entryId={entry.id}
-                        initialText={entry.transcribedText}
-                        className="text-sm"
+                  {editingEntry === entry.id ? (
+                    <div className="space-y-3">
+                      <Textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        placeholder="Edit your journal entry..."
+                        className="min-h-[120px]"
                       />
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-sm mb-4 italic">No transcription available</p>
+                    <>
+                      {entry.transcribedText && (
+                        <p className="text-gray-700 text-sm mb-4 line-clamp-3">
+                          {entry.transcribedText.substring(0, 200)}
+                          {entry.transcribedText.length > 200 ? '...' : ''}
+                        </p>
+                      )}
+                    </>
                   )}
                   
                   {entry.tags && entry.tags.length > 0 && (
