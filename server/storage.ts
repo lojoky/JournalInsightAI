@@ -76,11 +76,7 @@ export interface IStorage {
   getNotionEntryByJournalId(journalEntryId: number): Promise<NotionEntry | undefined>;
   getNotionEntriesByUser(userId: number): Promise<NotionEntry[]>;
 
-  // Google Docs methods
-  createGoogleDoc(entry: InsertGoogleDoc): Promise<GoogleDoc>;
-  updateGoogleDoc(id: number, updates: Partial<InsertGoogleDoc>): Promise<GoogleDoc>;
-  getGoogleDocByJournalId(journalEntryId: number): Promise<GoogleDoc | undefined>;
-  getGoogleDocsByUser(userId: number): Promise<GoogleDoc[]>;
+  // Google Docs methods removed - will be rebuilt
 }
 
 export class DatabaseStorage implements IStorage {
@@ -365,39 +361,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(notionEntries.createdAt));
   }
 
-  // Google Docs methods
-  async createGoogleDoc(entry: InsertGoogleDoc): Promise<GoogleDoc> {
-    const [result] = await db
-      .insert(googleDocs)
-      .values(entry)
-      .returning();
-    return result;
-  }
-
-  async updateGoogleDoc(id: number, updates: Partial<InsertGoogleDoc>): Promise<GoogleDoc> {
-    const [result] = await db
-      .update(googleDocs)
-      .set(updates)
-      .where(eq(googleDocs.id, id))
-      .returning();
-    return result;
-  }
-
-  async getGoogleDocByJournalId(journalEntryId: number): Promise<GoogleDoc | undefined> {
-    const [entry] = await db
-      .select()
-      .from(googleDocs)
-      .where(eq(googleDocs.journalEntryId, journalEntryId));
-    return entry || undefined;
-  }
-
-  async getGoogleDocsByUser(userId: number): Promise<GoogleDoc[]> {
-    return await db
-      .select()
-      .from(googleDocs)
-      .where(eq(googleDocs.userId, userId))
-      .orderBy(desc(googleDocs.createdAt));
-  }
+  // Google Docs methods removed - will be rebuilt
 }
 
 export const storage = new DatabaseStorage();
