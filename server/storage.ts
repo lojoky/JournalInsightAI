@@ -76,7 +76,18 @@ export interface IStorage {
   getNotionEntryByJournalId(journalEntryId: number): Promise<NotionEntry | undefined>;
   getNotionEntriesByUser(userId: number): Promise<NotionEntry[]>;
 
-  // Google Docs methods removed - will be rebuilt
+  // Google Docs credentials methods
+  createGoogleDocsCredentials(credentials: InsertGoogleDocsCredentials): Promise<GoogleDocsCredentials>;
+  updateGoogleDocsCredentials(userId: number, updates: Partial<InsertGoogleDocsCredentials>): Promise<GoogleDocsCredentials>;
+  getGoogleDocsCredentials(userId: number): Promise<GoogleDocsCredentials | undefined>;
+  deleteGoogleDocsCredentials(userId: number): Promise<void>;
+
+  // Google Docs entries methods
+  createGoogleDocsEntry(entry: InsertGoogleDocsEntry): Promise<GoogleDocsEntry>;
+  updateGoogleDocsEntry(id: number, updates: Partial<InsertGoogleDocsEntry>): Promise<GoogleDocsEntry>;
+  getGoogleDocsEntryByJournalId(journalEntryId: number): Promise<GoogleDocsEntry | undefined>;
+  getGoogleDocsEntriesByUser(userId: number): Promise<GoogleDocsEntry[]>;
+  getLastGoogleDocsEntryByUser(userId: number): Promise<GoogleDocsEntry | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {

@@ -291,6 +291,12 @@ export type UserIntegration = typeof userIntegrations.$inferSelect;
 export type InsertNotionEntry = z.infer<typeof insertNotionEntrySchema>;
 export type NotionEntry = typeof notionEntries.$inferSelect;
 
+export type InsertGoogleDocsCredentials = z.infer<typeof insertGoogleDocsCredentialsSchema>;
+export type GoogleDocsCredentials = typeof googleDocsCredentials.$inferSelect;
+
+export type InsertGoogleDocsEntry = z.infer<typeof insertGoogleDocsEntrySchema>;
+export type GoogleDocsEntry = typeof googleDocsEntries.$inferSelect;
+
 // Enhanced types for API responses
 export type JournalEntryWithDetails = JournalEntry & {
   themes: Theme[];
