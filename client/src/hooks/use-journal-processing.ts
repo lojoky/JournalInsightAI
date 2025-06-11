@@ -32,11 +32,11 @@ export function useJournalProcessing() {
       console.log('Starting upload for file:', file.name, file.type, file.size);
       
       const formData = new FormData();
-      formData.append('journal', file);
+      formData.append('image', file);
       formData.append('title', title);
 
       console.log('FormData created, sending request...');
-      const response = await apiRequest('POST', '/api/upload', formData);
+      const response = await apiRequest('POST', '/api/journal-entries/upload', formData);
       const result = await response.json() as UploadResponse;
       console.log('Upload successful:', result);
       return result;
@@ -225,36 +225,52 @@ export function useJournalProcessing() {
     setBulkProgress({ current: 0, total: files.length });
 
     try {
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('journals', file);
-      });
-
-      console.log(`Starting bulk upload of ${files.length} files...`);
-      const response = await apiRequest('POST', '/api/upload-bulk', formData);
-      const result = await response.json();
-      
-      setBulkProgress({ current: files.length, total: files.length });
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setBulkProgress({ current: i + 1, total: files.length });
+        
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        
+        try {
+          // Upload file
+          const uploadResult = await uploadMutation.mutateAsync({ file, title });
+          
+          // Extract text using OpenAI Vision
+          await aiTextExtractionMutation.mutateAsync(uploadResult.id);
+          
+          // Analyze with AI
+          await analysisMutation.mutateAsync(uploadResult.id);
+          
+          console.log(`Processed file ${i + 1}/${files.length}: ${file.name}`);
+        } catch (error) {
+          console.error(`Failed to process file ${file.name}:`, error);
+          toast({
+            title: `Failed to process ${file.name}`,
+            description: "Continuing with remaining files...",
+            variant: "destructive",
+          });
+        }
+      }
 
       // Invalidate cache to refresh the entries list
       queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
       
       toast({
-        title: "Bulk upload complete",
-        description: result.message || `Successfully uploaded ${files.length} files`,
+        title: "Bulk processing complete",
+        description: `Successfully processed ${files.length} journal entries.`,
       });
     } catch (error) {
-      console.error('Bulk upload error:', error);
+      console.error('Bulk processing error:', error);
       toast({
-        title: "Bulk upload failed",
-        description: "Please try again",
+        title: "Bulk processing failed",
+        description: "There was an error processing your journal entries.",
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
       setBulkProgress(null);
     }
-  }, [toast, queryClient]);
+  }, [uploadMutation, aiTextExtractionMutation, analysisMutation, queryClient, toast]);
 
   // Function to add custom tag
   const addCustomTag = useCallback(async (entryId: number, tagName: string, category?: string) => {

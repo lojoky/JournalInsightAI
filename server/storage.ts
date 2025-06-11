@@ -61,9 +61,6 @@ export interface IStorage {
   // Failed entries methods
   getFailedEntries(): Promise<JournalEntry[]>;
 
-  // Delete journal entry
-  deleteJournalEntry(id: number): Promise<void>;
-
   // User integration methods
   createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration>;
   updateUserIntegration(userId: number, integrationType: string, updates: Partial<InsertUserIntegration>): Promise<UserIntegration>;
@@ -75,8 +72,6 @@ export interface IStorage {
   updateNotionEntry(id: number, updates: Partial<InsertNotionEntry>): Promise<NotionEntry>;
   getNotionEntryByJournalId(journalEntryId: number): Promise<NotionEntry | undefined>;
   getNotionEntriesByUser(userId: number): Promise<NotionEntry[]>;
-
-  // Google Docs methods removed - will be rebuilt
 }
 
 export class DatabaseStorage implements IStorage {
@@ -283,10 +278,6 @@ export class DatabaseStorage implements IStorage {
     return entries;
   }
 
-  async deleteJournalEntry(id: number): Promise<void> {
-    await db.delete(journalEntries).where(eq(journalEntries.id, id));
-  }
-
   // User integration methods
   async createUserIntegration(integration: InsertUserIntegration): Promise<UserIntegration> {
     const [result] = await db
@@ -360,8 +351,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(notionEntries.userId, userId))
       .orderBy(desc(notionEntries.createdAt));
   }
-
-  // Google Docs methods removed - will be rebuilt
 }
 
 export const storage = new DatabaseStorage();

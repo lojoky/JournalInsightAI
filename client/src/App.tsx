@@ -9,7 +9,6 @@ import Entries from "@/pages/entries";
 import EntryDetail from "@/pages/entry-detail";
 import Insights from "@/pages/insights";
 import Settings from "@/pages/settings";
-import GoogleSetup from "@/pages/google-setup";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth";
 
@@ -35,7 +34,6 @@ function ProtectedRouter() {
       <Route path="/entry/:id" component={EntryDetail} />
       <Route path="/insights" component={Insights} />
       <Route path="/settings" component={Settings} />
-      <Route path="/google-setup" component={GoogleSetup} />
       <Route component={NotFound} />
     </Switch>
   );

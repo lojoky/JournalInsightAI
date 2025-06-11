@@ -10,7 +10,6 @@ import AIAnalysis from "@/components/ai-analysis";
 import TagSystem from "@/components/tag-system";
 import RecentEntries from "@/components/recent-entries";
 import ExportDialog from "@/components/export-dialog";
-// Google Docs integration removed - will be rebuilt
 import { useJournalProcessing } from "@/hooks/use-journal-processing";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -53,7 +52,6 @@ export default function Home() {
               <a href="/settings" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
             </nav>
             <div className="flex items-center space-x-3">
-              {/* Google Docs integration will be rebuilt */}
               <ExportDialog>
                 <Button variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />

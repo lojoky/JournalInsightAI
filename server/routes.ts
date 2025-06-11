@@ -38,7 +38,7 @@ const upload = multer({
         await fs.mkdir(uploadDir, { recursive: true });
         cb(null, uploadDir);
       } catch (error) {
-        cb(error as any, uploadDir);
+        cb(error as Error, uploadDir);
       }
     },
     filename: (req, file, cb) => {
@@ -46,35 +46,36 @@ const upload = multer({
       cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
   }),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
+    console.log('File filter check:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    });
+    
+    const allowedTypes = /jpeg|jpg|png|heic|webp/;
+    const allowedMimes = /image\/(jpeg|jpg|png|heic|webp)/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedMimes.test(file.mimetype.toLowerCase());
+
+    console.log('Validation results:', { extname, mimetype });
+
+    if (mimetype || extname) {
+      return cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed') as any, false);
+      console.log('File rejected:', file.originalname, file.mimetype);
+      cb(new Error('Only image files (JPEG, JPG, PNG, HEIC, WEBP) are allowed!'));
     }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log("Auth check:", {
-    hasSession: !!req.session,
-    userId: req.session?.userId,
-    sessionId: req.session?.id,
-    path: req.path
-  });
-  
   if (!req.session?.userId) {
-    console.log("Authentication failed - no session or userId");
-    return res.status(401).json({ 
-      message: "Authentication required",
-      hasSession: !!req.session,
-      sessionExists: req.session?.id ? true : false
-    });
+    return res.status(401).json({ message: "Authentication required" });
   }
   next();
 }
@@ -86,80 +87,389 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password } = req.body;
       
       if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+        return res.status(400).json({ message: "Username and password required" });
       }
-
+      
       const result = await authenticateUser(username, password);
       
       if (result.success && result.user) {
         req.session.userId = result.user.id;
         req.session.user = result.user;
-        return res.json({ user: result.user });
+        
+        res.json({
+          success: true,
+          user: {
+            id: result.user.id,
+            username: result.user.username,
+            createdAt: result.user.createdAt
+          }
+        });
       } else {
-        return res.status(401).json({ message: result.error || "Invalid credentials" });
+        res.status(401).json({ success: false, message: result.error });
       }
     } catch (error) {
       console.error("Login error:", error);
-      return res.status(500).json({ message: "Login failed" });
+      res.status(500).json({ message: "Login failed" });
     }
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/signup", async (req, res) => {
     try {
       const { username, password } = req.body;
       
       if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+        return res.status(400).json({ message: "Username and password required" });
       }
-
+      
+      // Validate input
       const usernameValidation = validateUsername(username);
       if (!usernameValidation.valid) {
         return res.status(400).json({ message: usernameValidation.error });
       }
-
+      
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.valid) {
         return res.status(400).json({ message: passwordValidation.error });
       }
-
+      
       const result = await createUser(username, password);
       
       if (result.success && result.user) {
         req.session.userId = result.user.id;
         req.session.user = result.user;
-        return res.json({ user: result.user });
+        
+        res.json({
+          success: true,
+          user: {
+            id: result.user.id,
+            username: result.user.username,
+            createdAt: result.user.createdAt
+          }
+        });
       } else {
-        return res.status(400).json({ message: result.error || "Registration failed" });
+        res.status(400).json({ success: false, message: result.error });
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      return res.status(500).json({ message: "Registration failed" });
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Signup failed" });
     }
   });
 
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
+        console.error("Logout error:", err);
         return res.status(500).json({ message: "Logout failed" });
       }
       res.clearCookie('connect.sid');
-      res.json({ message: "Logged out successfully" });
+      res.json({ success: true });
     });
   });
 
   app.get("/api/auth/me", (req, res) => {
     if (req.session?.userId && req.session?.user) {
-      res.json({ user: req.session.user });
+      res.json({
+        user: {
+          id: req.session.user.id,
+          username: req.session.user.username,
+          createdAt: req.session.user.createdAt
+        }
+      });
     } else {
       res.status(401).json({ message: "Not authenticated" });
     }
   });
+  // Create default user for demo purposes
+  let defaultUser: any = null;
+  try {
+    defaultUser = await storage.getUserByUsername("demo");
+    if (!defaultUser) {
+      defaultUser = await storage.createUser({
+        username: "demo",
+        password: "demo"
+      });
+    }
+  } catch (error) {
+    console.error("Error creating default user:", error);
+  }
 
-  // Journal entry routes
+  // Create default tags if they don't exist
+  const defaultTags = [
+    { name: "faith", category: "spiritual", color: "#6366F1" },
+    { name: "career", category: "professional", color: "#8B5CF6" },
+    { name: "relationships", category: "personal", color: "#10B981" },
+    { name: "gratitude", category: "emotional", color: "#F59E0B" },
+    { name: "reflection", category: "mental", color: "#6B7280" },
+    { name: "personal-growth", category: "development", color: "#8B5CF6" },
+    { name: "family", category: "personal", color: "#10B981" },
+    { name: "decisions", category: "mental", color: "#F59E0B" },
+    { name: "mindfulness", category: "spiritual", color: "#10B981" }
+  ];
+
+  for (const tagData of defaultTags) {
+    try {
+      await storage.getOrCreateTag(tagData.name, tagData.category);
+    } catch (error) {
+      console.error(`Error creating tag ${tagData.name}:`, error);
+    }
+  }
+
+  // Upload journal entry image - protected route
+  app.post("/api/journal-entries/upload", requireAuth, upload.single('image'), async (req, res) => {
+    try {
+      console.log("Upload request received:");
+      console.log("- Files:", req.file);
+      console.log("- Body:", req.body);
+      console.log("- Content-Type:", req.headers['content-type']);
+      
+      if (!req.file) {
+        console.log("No file found in request");
+        return res.status(400).json({ message: "No image file provided" });
+      }
+
+      if (!defaultUser) {
+        return res.status(500).json({ message: "Default user not found" });
+      }
+
+      const { title = "Untitled Entry" } = req.body;
+      
+      // Convert HEIC to JPEG if needed for better OCR compatibility
+      let processedImagePath = req.file.path;
+      let conversionWarning = null;
+      
+      if (req.file.mimetype === 'image/heic' || req.file.originalname.toLowerCase().endsWith('.heic')) {
+        const convertedPath = req.file.path.replace(/\.heic$/i, '.jpg');
+        
+        // Try multiple conversion methods
+        let conversionSuccess = false;
+        
+        // Method 1: heif-convert
+        try {
+          await execAsync(`heif-convert "${req.file.path}" "${convertedPath}"`);
+          processedImagePath = convertedPath;
+          conversionSuccess = true;
+          console.log('HEIC converted to JPEG successfully using heif-convert');
+        } catch (error) {
+          console.log('heif-convert failed, trying ImageMagick...');
+        }
+        
+        // Method 2: ImageMagick if heif-convert failed
+        if (!conversionSuccess) {
+          try {
+            await execAsync(`convert "${req.file.path}" "${convertedPath}"`);
+            processedImagePath = convertedPath;
+            conversionSuccess = true;
+            console.log('HEIC converted to JPEG successfully using ImageMagick');
+          } catch (error) {
+            console.log('ImageMagick conversion also failed');
+          }
+        }
+        
+        if (!conversionSuccess) {
+          conversionWarning = "HEIC file could not be converted. For best results, please convert to JPEG or PNG before uploading.";
+          console.error('All HEIC conversion methods failed');
+        }
+      }
+
+      // Create journal entry with pending status
+      const entry = await storage.createJournalEntry({
+        userId: req.session.userId!,
+        title,
+        originalImageUrl: `/uploads/${req.file.filename}`,
+        processingStatus: "pending"
+      });
+
+      res.json({
+        id: entry.id,
+        message: "Image uploaded successfully",
+        imageUrl: entry.originalImageUrl,
+        processedImagePath: processedImagePath !== req.file.path ? processedImagePath.replace(process.cwd(), '') : undefined,
+        warning: conversionWarning
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
+  // Extract text using OpenAI Vision (much better for handwriting)
+  app.post("/api/journal-entries/:id/extract-text", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const entry = await storage.getJournalEntry(entryId);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get the image path - use converted image if available
+      const imagePath = path.join(process.cwd(), entry.originalImageUrl!);
+      const convertedPath = imagePath.replace(/\.heic$/i, '.jpg');
+      
+      let imageToProcess = imagePath;
+      try {
+        await fs.access(convertedPath);
+        imageToProcess = convertedPath; // Use converted image if it exists
+      } catch {
+        // Use original if converted doesn't exist
+      }
+
+      // Extract text using OpenAI Vision
+      const result = await extractTextFromImage(imageToProcess);
+
+      // Update entry with transcription
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText: result.text,
+        ocrConfidence: result.confidence,
+        processingStatus: "transcribed"
+      });
+
+      res.json({
+        transcribedText: result.text,
+        confidence: result.confidence,
+        entry: updatedEntry
+      });
+    } catch (error) {
+      console.error("OpenAI text extraction error:", error);
+      res.status(500).json({ message: "Failed to extract text from image" });
+    }
+  });
+
+  // Process OCR transcription (legacy endpoint for Tesseract)
+  app.post("/api/journal-entries/:id/transcribe", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const { transcribedText, confidence } = req.body;
+
+      if (!transcribedText) {
+        return res.status(400).json({ message: "Transcribed text is required" });
+      }
+
+      // Update entry with transcription
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        transcribedText,
+        ocrConfidence: confidence,
+        processingStatus: "processing"
+      });
+
+      res.json({
+        id: updatedEntry.id,
+        transcribedText: updatedEntry.transcribedText,
+        confidence: updatedEntry.ocrConfidence
+      });
+    } catch (error) {
+      console.error("Transcription error:", error);
+      res.status(500).json({ message: "Failed to process transcription" });
+    }
+  });
+
+  // Process AI analysis
+  app.post("/api/journal-entries/:id/analyze", requireAuth, async (req, res) => {
+    try {
+      const entryId = parseInt(req.params.id);
+      const entry = await storage.getJournalEntry(entryId);
+
+      if (!entry || !entry.transcribedText) {
+        return res.status(400).json({ message: "Entry not found or not transcribed" });
+      }
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Perform AI analysis
+      const analysis = await analyzeJournalEntry(entry.transcribedText);
+      const sentiment = await analyzeSentiment(entry.transcribedText);
+
+      // Save themes
+      const themes = await Promise.all(
+        analysis.themes.map(theme => 
+          storage.createTheme({
+            entryId,
+            title: theme.title,
+            description: theme.description,
+            confidence: theme.confidence
+          })
+        )
+      );
+
+      // Save sentiment analysis
+      const sentimentData = await storage.createSentimentAnalysis({
+        entryId,
+        positiveScore: sentiment.positive,
+        neutralScore: sentiment.neutral,
+        concernScore: sentiment.concern,
+        overallSentiment: sentiment.overall
+      });
+
+      // Process and save tags
+      const tagPromises = analysis.tags.map(async (tagName) => {
+        const tag = await storage.getOrCreateTag(tagName.toLowerCase());
+        await storage.addTagToEntry({
+          entryId,
+          tagId: tag.id,
+          confidence: 85, // Default confidence for AI-generated tags
+          isAutoGenerated: true
+        });
+        return tag;
+      });
+
+      const savedTags = await Promise.all(tagPromises);
+
+      // Update entry status to completed and set the AI-generated title
+      await storage.updateJournalEntry(entryId, {
+        title: analysis.title,
+        processingStatus: "completed"
+      });
+
+      // Sync to Notion if integration is enabled
+      try {
+        const completeEntry = await storage.getJournalEntry(entryId);
+        if (completeEntry) {
+          await syncJournalEntryToNotion(completeEntry);
+        }
+      } catch (syncError) {
+        console.error("Notion sync failed:", syncError);
+        // Don't fail the main request if Notion sync fails
+      }
+
+      res.json({
+        themes,
+        sentiment: sentimentData,
+        tags: savedTags,
+        reflectionQuestions: analysis.reflectionQuestions
+      });
+    } catch (error) {
+      console.error("Analysis error:", error);
+      
+      // Update entry status to failed
+      try {
+        await storage.updateJournalEntry(parseInt(req.params.id), {
+          processingStatus: "failed"
+        });
+      } catch (updateError) {
+        console.error("Failed to update entry status:", updateError);
+      }
+      
+      res.status(500).json({ message: "Failed to analyze journal entry" });
+    }
+  });
+
+  // Get journal entries - protected route
   app.get("/api/journal-entries", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
+      console.log(`Fetching journal entries for user ${req.session.userId} with limit ${limit}`);
+      
       const entries = await storage.getJournalEntriesByUser(req.session.userId!, limit);
+      console.log(`Found ${entries.length} entries for user ${req.session.userId}`);
+      
       res.json(entries);
     } catch (error) {
       console.error("Get entries error:", error);
@@ -167,15 +477,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific journal entry - protected route
   app.get("/api/journal-entries/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const entry = await storage.getJournalEntry(id);
-      
-      if (!entry || entry.userId !== req.session.userId) {
-        return res.status(404).json({ message: "Entry not found" });
+      const entryId = parseInt(req.params.id);
+      const entry = await storage.getJournalEntry(entryId);
+
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
       }
-      
+
+      // Check if user owns this entry
+      if (entry.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       res.json(entry);
     } catch (error) {
       console.error("Get entry error:", error);
@@ -183,306 +499,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/journal-entries/:id/edit", requireAuth, async (req, res) => {
+  // Add custom tag to entry - protected route
+  app.post("/api/journal-entries/:id/tags", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const { title, transcribedText } = req.body;
-      
-      const entry = await storage.getJournalEntry(id);
+      const entryId = parseInt(req.params.id);
+      const { tagName, category } = req.body;
+
+      if (!tagName) {
+        return res.status(400).json({ message: "Tag name is required" });
+      }
+
+      // Verify user owns the entry
+      const entry = await storage.getJournalEntry(entryId);
       if (!entry || entry.userId !== req.session.userId) {
-        return res.status(404).json({ message: "Entry not found" });
+        return res.status(403).json({ message: "Access denied" });
       }
 
-      const updatedEntry = await storage.updateJournalEntry(id, {
-        title,
-        transcribedText
-      });
-
-      res.json(updatedEntry);
-    } catch (error) {
-      console.error("Edit entry error:", error);
-      res.status(500).json({ message: "Failed to edit journal entry" });
-    }
-  });
-
-  app.delete("/api/journal-entries/:id", requireAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
+      const tag = await storage.getOrCreateTag(tagName.toLowerCase(), category, true);
       
-      const entry = await storage.getJournalEntry(id);
-      if (!entry || entry.userId !== req.session.userId) {
-        return res.status(404).json({ message: "Entry not found" });
-      }
+      // Check if tag is already associated with entry
+      const existingTags = await storage.getTagsByEntry(entryId);
+      const tagExists = existingTags.some(t => t.id === tag.id);
 
-      await storage.deleteJournalEntry(id);
-      res.json({ message: "Entry deleted successfully" });
-    } catch (error) {
-      console.error("Delete entry error:", error);
-      res.status(500).json({ message: "Failed to delete journal entry" });
-    }
-  });
-
-  app.post("/api/upload", requireAuth, upload.single('journal'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const userId = req.session.userId!;
-      const { title } = req.body;
-
-      const entry = await storage.createJournalEntry({
-        userId,
-        title: title || "Untitled Entry",
-        originalImageUrl: req.file.path,
-        transcribedText: "",
-        ocrConfidence: 0,
-        processingStatus: "processing"
-      });
-
-      res.json(entry);
-
-      // Process asynchronously
-      try {
-        const ocrResult = await extractTextFromImage(req.file.path);
-        
-        if (ocrResult.text) {
-          const analysisResult = await analyzeJournalEntry(ocrResult.text);
-          const sentimentResult = await analyzeSentiment(ocrResult.text);
-
-          await storage.updateJournalEntry(entry.id, {
-            title: analysisResult.title || entry.title,
-            transcribedText: ocrResult.text,
-            ocrConfidence: ocrResult.confidence,
-            processingStatus: "completed"
-          });
-
-          // Add themes
-          for (const theme of analysisResult.themes) {
-            await storage.createTheme({
-              entryId: entry.id,
-              title: theme.title,
-              description: theme.description,
-              confidence: theme.confidence
-            });
-          }
-
-          // Add tags
-          for (const tagName of analysisResult.tags) {
-            const tag = await storage.getOrCreateTag(tagName);
-            await storage.addTagToEntry({
-              entryId: entry.id,
-              tagId: tag.id,
-              confidence: 0.8,
-              isAutoGenerated: true
-            });
-          }
-
-          // Add sentiment analysis
-          await storage.createSentimentAnalysis({
-            entryId: entry.id,
-            positiveScore: sentimentResult.positive,
-            neutralScore: sentimentResult.neutral,
-            concernScore: sentimentResult.concern,
-            overallSentiment: sentimentResult.overall
-          });
-
-          const completeEntry = await storage.getJournalEntry(entry.id);
-          
-          // Sync to Notion if enabled
-          const notionIntegration = await storage.getUserIntegration(userId, "notion");
-          if (notionIntegration?.isEnabled && completeEntry) {
-            try {
-              await syncJournalEntryToNotion(completeEntry);
-            } catch (notionError) {
-              console.error("Notion sync failed:", notionError);
-            }
-          }
-        } else {
-          await storage.updateJournalEntry(entry.id, {
-            processingStatus: "failed"
-          });
-        }
-      } catch (processingError) {
-        console.error("Processing error:", processingError);
-        await storage.updateJournalEntry(entry.id, {
-          processingStatus: "failed"
+      if (!tagExists) {
+        await storage.addTagToEntry({
+          entryId,
+          tagId: tag.id,
+          confidence: 100, // Manual tags have 100% confidence
+          isAutoGenerated: false
         });
       }
+
+      res.json(tag);
     } catch (error) {
-      console.error("Upload error:", error);
-      res.status(500).json({ message: "Upload failed" });
+      console.error("Add tag error:", error);
+      res.status(500).json({ message: "Failed to add tag" });
     }
   });
 
-  app.post("/api/upload-bulk", requireAuth, upload.array('journals', 10), async (req, res) => {
+  // Get all available tags
+  app.get("/api/tags", async (req, res) => {
     try {
-      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-        return res.status(400).json({ message: "No files uploaded" });
-      }
-
-      const userId = req.session.userId!;
-      const entries = [];
-
-      for (const file of req.files) {
-        const entry = await storage.createJournalEntry({
-          userId,
-          title: `Bulk Upload ${new Date().toLocaleDateString()}`,
-          originalImageUrl: file.path,
-          transcribedText: "",
-          ocrConfidence: 0,
-          processingStatus: "processing"
-        });
-        entries.push(entry);
-      }
-
-      res.json({ entries, message: `${entries.length} files uploaded and processing started` });
-
-      // Process each file asynchronously
-      const files = req.files as Express.Multer.File[];
-      for (let index = 0; index < entries.length; index++) {
-        const entry = entries[index];
-        try {
-          const file = files[index];
-          const ocrResult = await extractTextFromImage(file.path);
-          
-          if (ocrResult.text) {
-            const analysisResult = await analyzeJournalEntry(ocrResult.text);
-            const sentimentResult = await analyzeSentiment(ocrResult.text);
-
-            await storage.updateJournalEntry(entry.id, {
-              title: analysisResult.title,
-              transcribedText: ocrResult.text,
-              ocrConfidence: ocrResult.confidence,
-              processingStatus: "completed"
-            });
-
-            // Add themes
-            for (const theme of analysisResult.themes) {
-              await storage.createTheme({
-                entryId: entry.id,
-                title: theme.title,
-                description: theme.description,
-                confidence: theme.confidence
-              });
-            }
-
-            // Add tags
-            for (const tagName of analysisResult.tags) {
-              const tag = await storage.getOrCreateTag(tagName);
-              await storage.addTagToEntry({
-                entryId: entry.id,
-                tagId: tag.id,
-                confidence: 0.8,
-                isAutoGenerated: true
-              });
-            }
-
-            // Add sentiment analysis
-            await storage.createSentimentAnalysis({
-              entryId: entry.id,
-              positiveScore: sentimentResult.positive,
-              neutralScore: sentimentResult.neutral,
-              concernScore: sentimentResult.concern,
-              overallSentiment: sentimentResult.overall
-            });
-          } else {
-            await storage.updateJournalEntry(entry.id, {
-              processingStatus: "failed"
-            });
-          }
-        } catch (processingError) {
-          console.error(`Processing error for entry ${entry.id}:`, processingError);
-          await storage.updateJournalEntry(entry.id, {
-            processingStatus: "failed"
-          });
-        }
-      }
+      const allTags = await storage.getAllTags();
+      res.json(allTags);
     } catch (error) {
-      console.error("Bulk upload error:", error);
-      res.status(500).json({ message: "Bulk upload failed" });
+      console.error("Get tags error:", error);
+      res.status(500).json({ message: "Failed to fetch tags" });
     }
   });
 
-  // Notion integration routes
+  // Notion Integration Routes
+  
+  // Get user's Notion integration configuration
   app.get("/api/integrations/notion", requireAuth, async (req, res) => {
     try {
       const integration = await storage.getUserIntegration(req.session.userId!, "notion");
       
       if (!integration) {
-        return res.json({ enabled: false, configured: false });
+        return res.json({ 
+          enabled: false, 
+          configured: false 
+        });
       }
 
       res.json({
         enabled: integration.isEnabled,
         configured: !!integration.config,
-        config: integration.config
+        config: integration.config ? {
+          hasToken: !!integration.config.integrationToken,
+          hasPageUrl: !!integration.config.pageUrl,
+          databaseName: integration.config.databaseName || "Journal Entries"
+        } : null
       });
     } catch (error) {
       console.error("Get Notion integration error:", error);
-      res.status(500).json({ message: "Failed to get Notion integration status" });
+      res.status(500).json({ message: "Failed to fetch Notion integration" });
     }
   });
 
+  // Configure user's Notion integration
   app.post("/api/integrations/notion/configure", requireAuth, async (req, res) => {
     try {
-      const { integrationToken, pageUrl } = req.body;
-      
+      const { integrationToken, pageUrl, databaseName }: {
+        integrationToken: string;
+        pageUrl: string;
+        databaseName?: string;
+      } = req.body;
+
       if (!integrationToken || !pageUrl) {
-        return res.status(400).json({ message: "Integration token and page URL are required" });
-      }
-
-      const notion = createNotionClient(integrationToken);
-      const pageId = extractPageIdFromUrl(pageUrl);
-      
-      await createJournalDatabase(notion, pageId);
-
-      const config = {
-        integrationToken,
-        pageUrl,
-        pageId
-      };
-
-      const existingIntegration = await storage.getUserIntegration(req.session.userId!, "notion");
-      
-      if (existingIntegration) {
-        await storage.updateUserIntegration(req.session.userId!, "notion", {
-          config,
-          isEnabled: true
-        });
-      } else {
-        await storage.createUserIntegration({
-          userId: req.session.userId!,
-          integrationType: "notion",
-          isEnabled: true,
-          config
+        return res.status(400).json({ 
+          message: "Integration token and page URL are required" 
         });
       }
 
-      res.json({ success: true, message: "Notion integration configured successfully" });
+      // Test the Notion connection
+      try {
+        const notion = createNotionClient(integrationToken);
+        const pageId = extractPageIdFromUrl(pageUrl);
+        
+        // Try to list databases to verify access
+        await getNotionDatabases(notion, pageId);
+        
+        const config = {
+          integrationToken,
+          pageUrl,
+          pageId,
+          databaseName: databaseName || "Journal Entries"
+        };
+
+        // Check if integration exists
+        const existingIntegration = await storage.getUserIntegration(req.session.userId!, "notion");
+        
+        if (existingIntegration) {
+          await storage.updateUserIntegration(req.session.userId!, "notion", {
+            config,
+            isEnabled: true
+          });
+        } else {
+          await storage.createUserIntegration({
+            userId: req.session.userId!,
+            integrationType: "notion",
+            isEnabled: true,
+            config
+          });
+        }
+
+        res.json({ 
+          success: true, 
+          message: "Notion integration configured successfully" 
+        });
+      } catch (notionError) {
+        console.error("Notion connection error:", notionError);
+        res.status(400).json({ 
+          message: "Failed to connect to Notion. Please check your integration token and page URL." 
+        });
+      }
     } catch (error) {
-      console.error("Configure Notion error:", error);
+      console.error("Configure Notion integration error:", error);
       res.status(500).json({ message: "Failed to configure Notion integration" });
     }
   });
 
+  // Toggle Notion integration on/off
   app.post("/api/integrations/notion/toggle", requireAuth, async (req, res) => {
     try {
       const { enabled } = req.body;
       
       const integration = await storage.getUserIntegration(req.session.userId!, "notion");
-      
       if (!integration) {
-        return res.status(404).json({ message: "Notion integration not found" });
+        return res.status(404).json({ message: "Notion integration not configured" });
       }
 
       await storage.updateUserIntegration(req.session.userId!, "notion", {
         isEnabled: enabled
       });
 
-      res.json({
+      res.json({ 
+        success: true, 
         enabled,
-        message: enabled ? "Notion integration enabled" : "Notion integration disabled"
+        message: `Notion integration ${enabled ? 'enabled' : 'disabled'}` 
       });
     } catch (error) {
       console.error("Toggle Notion integration error:", error);
@@ -490,6 +665,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Notion connection
+  app.post("/api/integrations/notion/test", requireAuth, async (req, res) => {
+    try {
+      const integration = await storage.getUserIntegration(req.session.userId!, "notion");
+      
+      if (!integration || !integration.config) {
+        return res.status(404).json({ message: "Notion integration not configured" });
+      }
+
+      const config = integration.config as { integrationToken: string; pageId: string };
+      const notion = createNotionClient(config.integrationToken);
+      const databases = await getNotionDatabases(notion, config.pageId);
+      
+      res.json({ 
+        success: true, 
+        message: "Connection successful",
+        databaseCount: databases.length
+      });
+    } catch (error) {
+      console.error("Test Notion connection error:", error);
+      res.status(400).json({ 
+        message: "Connection failed. Please check your configuration." 
+      });
+    }
+  });
+
+  // Bulk sync all entries to Notion
   app.post("/api/integrations/notion/sync-all", requireAuth, async (req, res) => {
     try {
       const integration = await storage.getUserIntegration(req.session.userId!, "notion");
@@ -514,17 +716,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Retry failed entries
-  app.post("/api/retry-failed", requireAuth, async (req, res) => {
+  app.post("/api/retry-failed-entries", async (req, res) => {
     try {
+      console.log("Starting retry process for failed entries...");
       const result = await retryFailedEntries();
-      res.json(result);
+      
+      res.json({
+        message: "Retry process completed",
+        ...result
+      });
     } catch (error) {
       console.error("Retry failed entries error:", error);
-      res.status(500).json({ message: "Failed to retry processing" });
+      res.status(500).json({ message: "Failed to retry entries" });
     }
   });
 
-  app.get("/api/failed-entries-count", requireAuth, async (req, res) => {
+  // Get failed entries count
+  app.get("/api/failed-entries-count", async (req, res) => {
     try {
       const failedEntries = await storage.getFailedEntries();
       res.json({ count: failedEntries.length });
@@ -534,38 +742,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Tags routes
-  app.get("/api/tags", requireAuth, async (req, res) => {
-    try {
-      const tags = await storage.getAllTags();
-      res.json(tags);
-    } catch (error) {
-      console.error("Get tags error:", error);
-      res.status(500).json({ message: "Failed to fetch tags" });
-    }
-  });
-
-  // Basic Google Docs route - placeholder for rebuild
-  app.get("/api/integrations/google-docs", requireAuth, async (req, res) => {
-    try {
-      res.json({ 
-        enabled: false, 
-        configured: false,
-        message: "Google Docs integration will be rebuilt"
-      });
-    } catch (error) {
-      console.error("Get Google Docs integration error:", error);
-      res.status(500).json({ message: "Failed to get Google Docs integration status" });
-    }
-  });
-
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ 
-      status: "ok", 
-      timestamp: new Date().toISOString()
-    });
-  });
+  // Serve uploaded files
+  const expressStatic = express.static;
+  app.use('/uploads', expressStatic(path.join(process.cwd(), 'uploads')));
 
   const httpServer = createServer(app);
   return httpServer;
