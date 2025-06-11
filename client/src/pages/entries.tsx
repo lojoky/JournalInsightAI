@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Calendar, FileText, Tag, Download, ChevronLeft, ChevronRight, Edit, Trash2, Save, X, CheckSquare, Square } from "lucide-react";
 import { Link } from "wouter";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -17,6 +18,8 @@ export default function Entries() {
   const entriesPerPage = 20;
   const [editingEntry, setEditingEntry] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -94,6 +97,41 @@ export default function Entries() {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const response = await fetch('/api/journal-entries/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ entryIds: ids }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Entries Deleted",
+        description: `Successfully deleted ${data.deletedCount} journal entries`,
+      });
+      setSelectedEntries(new Set());
+      setIsSelectMode(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Bulk Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditStart = (entry: JournalEntryWithDetails) => {
     setEditingEntry(entry.id);
     setEditText(entry.transcribedText || "");
@@ -112,6 +150,35 @@ export default function Entries() {
 
   const handleDelete = (id: number) => {
     deleteMutation.mutate(id);
+  };
+
+  const handleSelectEntry = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedEntries);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedEntries(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(entries.map(entry => entry.id));
+      setSelectedEntries(allIds);
+    } else {
+      setSelectedEntries(new Set());
+    }
+  };
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedEntries);
+    bulkDeleteMutation.mutate(ids);
+  };
+
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedEntries(new Set());
   };
 
   const totalPages = Math.ceil((allEntries?.length || 0) / entriesPerPage);
@@ -145,17 +212,74 @@ export default function Entries() {
               </Link>
               <div>
                 <h1 className="text-xl font-semibold text-[#111827]">Journal Entries</h1>
-                <p className="text-sm text-gray-500">{allEntries?.length || 0} total entries</p>
+                <p className="text-sm text-gray-500">
+                  {selectedEntries.size > 0 
+                    ? `${selectedEntries.size} selected • ${allEntries?.length || 0} total entries`
+                    : `${allEntries?.length || 0} total entries`
+                  }
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Google Docs integration will be rebuilt */}
-              <ExportDialog>
-                <Button className="bg-[#6366F1] hover:bg-indigo-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export All
-                </Button>
-              </ExportDialog>
+              {!isSelectMode ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={toggleSelectMode}
+                  >
+                    <CheckSquare className="w-4 h-4 mr-2" />
+                    Select
+                  </Button>
+                  <ExportDialog>
+                    <Button className="bg-[#6366F1] hover:bg-indigo-700">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export All
+                    </Button>
+                  </ExportDialog>
+                </>
+              ) : (
+                <>
+                  {selectedEntries.size > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={bulkDeleteMutation.isPending}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete {selectedEntries.size}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Selected Entries</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedEntries.size} journal entries? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleBulkDelete}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete All
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={toggleSelectMode}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
