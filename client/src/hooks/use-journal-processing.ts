@@ -31,41 +31,35 @@ export function useJournalProcessing() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Status polling query for active processing entries
-  const { data: entryStatus } = useQuery({
-    queryKey: ['/api/journal-entries', pollingEntryId, 'status'],
+  // Fetch full entry details when polling (avoids React state issues)
+  const { data: fullEntry } = useQuery({
+    queryKey: ['/api/journal-entries', pollingEntryId],
     queryFn: async () => {
       if (!pollingEntryId) return null;
-      const response = await fetch(`/api/journal-entries/${pollingEntryId}/status`);
-      if (!response.ok) throw new Error('Failed to fetch status');
-      return response.json();
+      const response = await fetch(`/api/journal-entries/${pollingEntryId}`);
+      if (!response.ok) throw new Error('Failed to fetch entry');
+      const data = await response.json();
+      return data as JournalEntryWithDetails;
     },
     enabled: !!pollingEntryId,
-    refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 3000, // Poll every 3 seconds
     refetchIntervalInBackground: true
   });
 
-  // Update current entry when status changes
+  // Update current entry and handle completion
   useEffect(() => {
-    if (entryStatus && currentEntry && entryStatus.id === currentEntry.id) {
-      setCurrentEntry(prev => prev ? {
-        ...prev,
-        processingStatus: entryStatus.processingStatus,
-        transcribedText: entryStatus.transcribedText || prev.transcribedText,
-        ocrConfidence: entryStatus.ocrConfidence || prev.ocrConfidence,
-        title: entryStatus.title || prev.title,
-        updatedAt: entryStatus.updatedAt || prev.updatedAt
-      } : null);
+    if (fullEntry && pollingEntryId === fullEntry.id) {
+      setCurrentEntry(fullEntry);
 
       // Stop polling when processing is complete or failed
-      if (entryStatus.processingStatus === 'completed' || entryStatus.processingStatus === 'failed') {
+      if (fullEntry.processingStatus === 'completed' || fullEntry.processingStatus === 'failed') {
         setPollingEntryId(null);
         setIsProcessing(false);
         
         // Refresh the entries list
         queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
         
-        if (entryStatus.processingStatus === 'completed') {
+        if (fullEntry.processingStatus === 'completed') {
           toast({
             title: "Processing complete",
             description: "Your journal entry has been successfully processed and analyzed.",
@@ -73,13 +67,13 @@ export function useJournalProcessing() {
         } else {
           toast({
             title: "Processing failed",
-            description: entryStatus.transcribedText || "There was an error processing your journal entry.",
+            description: fullEntry.transcribedText || "There was an error processing your journal entry.",
             variant: "destructive",
           });
         }
       }
     }
-  }, [entryStatus, currentEntry, queryClient, toast]);
+  }, [fullEntry?.id, fullEntry?.processingStatus, pollingEntryId, queryClient, toast]);
 
   // Upload mutation
   const uploadMutation = useMutation({

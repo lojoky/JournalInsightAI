@@ -45,12 +45,15 @@ export default function ProcessingStatus({ entry, isProcessing }: ProcessingStat
       case "upload":
         return entry.originalImageUrl ? "completed" : "pending";
       case "ocr":
-        if (entry.transcribedText) return "completed";
-        if (entry.processingStatus === "processing" || entry.processingStatus === "pending") return "processing";
+        if (entry.processingStatus === "failed") return "failed";
+        if (entry.transcribedText && entry.transcribedText.length > 0) return "completed";
+        if (entry.processingStatus === "processing") return "processing";
         return "waiting";
       case "analysis":
-        if (entry.themes && entry.themes.length > 0) return "completed";
-        if (entry.transcribedText && entry.processingStatus === "processing") return "processing";
+        if (entry.processingStatus === "failed") return "failed";
+        if (entry.processingStatus === "completed" && entry.themes && entry.themes.length > 0) return "completed";
+        if (entry.transcribedText && entry.transcribedText.length > 0 && entry.processingStatus === "processing") return "processing";
+        if (entry.transcribedText && entry.transcribedText.length > 0) return "processing";
         return "waiting";
       default:
         return "waiting";
@@ -65,6 +68,8 @@ export default function ProcessingStatus({ entry, isProcessing }: ProcessingStat
         return <Check className="text-white w-4 h-4" />;
       case "processing":
         return <Loader2 className="text-white w-4 h-4 animate-spin" />;
+      case "failed":
+        return <span className="text-white w-4 h-4">✕</span>;
       default:
         return <Clock className="text-gray-400 w-4 h-4" />;
     }
@@ -76,6 +81,8 @@ export default function ProcessingStatus({ entry, isProcessing }: ProcessingStat
         return "bg-[#10B981]";
       case "processing":
         return "bg-[#6366F1] animate-pulse";
+      case "failed":
+        return "bg-red-500";
       default:
         return "bg-gray-200";
     }
@@ -121,6 +128,11 @@ export default function ProcessingStatus({ entry, isProcessing }: ProcessingStat
                 {isActive && (
                   <div className="text-[#6366F1] text-sm font-medium">
                     Processing...
+                  </div>
+                )}
+                {status === "failed" && (
+                  <div className="text-red-500 text-sm font-medium">
+                    Failed
                   </div>
                 )}
                 {isWaiting && (
