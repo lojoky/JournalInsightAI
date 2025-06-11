@@ -96,6 +96,47 @@ export default function ProcessingStatus({ entry, isProcessing, bulkProgress }: 
     return step.description;
   };
 
+  // Show bulk progress if available
+  if (bulkProgress && bulkProgress.total > 1) {
+    const progressPercentage = Math.round((bulkProgress.current / bulkProgress.total) * 100);
+    
+    return (
+      <Card className="journal-card">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-[#111827] mb-4">Bulk Upload Progress</h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-[#111827]">
+                Processing {bulkProgress.total} files
+              </span>
+              <span className="text-sm text-gray-600">
+                {bulkProgress.current} / {bulkProgress.total}
+              </span>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-[#6366F1] h-3 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-4 h-4 text-[#6366F1] animate-spin" />
+              <span className="text-sm text-gray-600">
+                {progressPercentage < 100 ? 
+                  "Processing files sequentially..." : 
+                  "Almost complete..."
+                }
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="journal-card">
       <CardContent className="p-6">
