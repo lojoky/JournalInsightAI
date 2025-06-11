@@ -16,8 +16,7 @@ const PgSession = ConnectPgSimple(session);
 // Determine if we're in production - check multiple environment indicators
 const isProduction = process.env.NODE_ENV === 'production' || 
                     process.env.REPLIT_DEPLOYMENT === '1' ||
-                    process.env.REPL_DEPLOYMENT === '1' ||
-                    process.env.REPLIT_ENVIRONMENT === 'production';
+                    process.env.REPL_DEPLOYMENT === '1';
 
 console.log("Server starting in mode:", {
   isProduction,
@@ -37,11 +36,10 @@ app.use(session({
   saveUninitialized: false,
   name: 'connect.sid',
   cookie: {
-    secure: isProduction, // Use secure cookies in production
+    secure: false, // Allow non-HTTPS for development
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: isProduction ? 'none' : 'lax', // Allow cross-site cookies in production for OAuth
-    domain: isProduction ? '.replit.app' : undefined
+    sameSite: 'lax'
   }
 }));
 
