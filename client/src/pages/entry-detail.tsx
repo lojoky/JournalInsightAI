@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare, Edit, Save, X } from "lucide-react";
+import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare, Edit, Save, X, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import GoogleDocsSync from "@/components/google-docs-sync";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function EntryDetail() {
@@ -130,12 +131,20 @@ export default function EntryDetail() {
                 </div>
               </div>
             </div>
-            <Badge 
-              variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
-              className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
-            >
-              {entry.processingStatus}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <GoogleDocsSync entryId={entry.id} entryTitle={entry.title}>
+                <Button variant="outline" size="sm">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Sync to Google Docs
+                </Button>
+              </GoogleDocsSync>
+              <Badge 
+                variant={entry.processingStatus === 'completed' ? 'default' : 'secondary'}
+                className={entry.processingStatus === 'completed' ? 'bg-green-100 text-green-800' : ''}
+              >
+                {entry.processingStatus}
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
