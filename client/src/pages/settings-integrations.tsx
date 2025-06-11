@@ -6,13 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink, CheckCircle, AlertCircle, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
-interface GoogleDocsStatus {
-  enabled: boolean;
-  configured: boolean;
-  needsReauth?: boolean;
-}
 
 interface NotionStatus {
   enabled: boolean;
@@ -23,19 +16,6 @@ interface NotionStatus {
 export default function SettingsIntegrations() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Fetch Google Docs integration status
-  const { data: googleDocsStatus, isLoading: googleLoading } = useQuery({
-    queryKey: ['/api/integrations/google-docs'],
-    queryFn: async () => {
-      const response = await fetch('/api/integrations/google-docs', {
-        credentials: 'include',
-      });
-      return response.json() as Promise<GoogleDocsStatus>;
-    },
-    refetchOnWindowFocus: true,
-    refetchInterval: 5000, // Check every 5 seconds for connection status updates
-  });
 
   // Fetch Notion integration status
   const { data: notionStatus, isLoading: notionLoading } = useQuery({
@@ -48,45 +28,11 @@ export default function SettingsIntegrations() {
     }
   });
 
-  // Google Docs connect mutation
-  const connectGoogleMutation = useMutation({
+  // Notion test mutation
+  const testNotionMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/google/auth', {
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OAuth auth error:", errorData);
-        throw new Error(errorData.message || "Failed to start OAuth flow");
-      }
-      
-      const data = await response.json();
-      console.log("OAuth response:", data);
-      
-      if (data.authUrl) {
-        console.log("Redirecting to:", data.authUrl);
-        window.location.href = data.authUrl;
-      } else {
-        throw new Error("No auth URL received");
-      }
-      return data;
-    },
-    onError: (error: Error) => {
-      console.error("OAuth mutation error:", error);
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Google Docs disconnect mutation
-  const disconnectGoogleMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/integrations/google-docs', {
-        method: 'DELETE',
+      const response = await fetch('/api/integrations/notion/test', {
+        method: 'POST',
         credentials: 'include',
       });
       if (!response.ok) {
@@ -97,216 +43,141 @@ export default function SettingsIntegrations() {
     },
     onSuccess: () => {
       toast({
-        title: "Disconnected",
-        description: "Google Docs integration has been disconnected",
+        title: "Test Successful",
+        description: "Notion integration is working correctly",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/integrations/google-docs'] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Disconnect Failed",
+        title: "Test Failed",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const handleGoogleConnect = () => {
-    connectGoogleMutation.mutate();
-  };
-
-  const handleGoogleDisconnect = () => {
-    disconnectGoogleMutation.mutate();
-  };
-
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-xl font-semibold text-[#111827]">Settings</h1>
-                <p className="text-sm text-gray-500">Manage your integrations</p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <Settings className="w-5 h-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/settings">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Settings
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-bold">Integrations</h1>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          {/* Google Docs Integration */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+      <div className="grid gap-6">
+        {/* Notion Integration */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">N</span>
+                </div>
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                      </svg>
-                    </div>
-                    Google Docs
-                    {googleLoading ? (
-                      <Badge variant="secondary">Loading...</Badge>
-                    ) : googleDocsStatus?.configured ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : googleDocsStatus?.needsReauth ? (
-                      <Badge variant="destructive">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Needs Reauth
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Not Connected</Badge>
-                    )}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Sync your journal entries to Google Docs for backup and collaboration
+                  <CardTitle className="text-lg">Notion</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Sync your journal entries to Notion databases
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {googleDocsStatus?.configured ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Disconnect
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Disconnect Google Docs</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will remove your Google Docs integration. You'll need to reconnect to sync future entries.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleGoogleDisconnect}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Disconnect
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : (
-                    <Button 
-                      onClick={handleGoogleConnect}
-                      disabled={connectGoogleMutation.isPending}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {connectGoogleMutation.isPending ? 'Connecting...' : 'Connect Google Docs'}
-                    </Button>
-                  )}
-                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  <p className="font-medium mb-2">Features:</p>
-                  <ul className="space-y-1 ml-4">
-                    <li>• Create new documents for journal entries</li>
-                    <li>• Append entries to existing documents</li>
-                    <li>• Automatic formatting with titles, dates, and tags</li>
-                    <li>• Secure OAuth authentication</li>
-                  </ul>
-                </div>
-                
-                {googleDocsStatus?.configured && (
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      ✓ Google Docs is connected and ready to use. You can now sync journal entries when uploading or editing.
-                    </p>
-                  </div>
-                )}
-
-                {googleDocsStatus?.needsReauth && (
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      ⚠ Your Google authentication has expired. Please reconnect to continue syncing entries.
-                    </p>
-                  </div>
+              <div className="flex items-center gap-2">
+                {notionLoading ? (
+                  <Badge variant="outline">Loading...</Badge>
+                ) : notionStatus?.configured ? (
+                  <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-red-200 text-red-600">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Not Connected
+                  </Badge>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Notion Integration */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4Z" />
-                      </svg>
-                    </div>
-                    Notion
-                    {notionLoading ? (
-                      <Badge variant="secondary">Loading...</Badge>
-                    ) : notionStatus?.configured ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Not Connected</Badge>
-                    )}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Automatically sync entries to your Notion workspace
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Notion integration allows you to automatically sync your journal entries to your Notion workspace.
+                Your entries will be organized in a structured database with themes, tags, and sentiment analysis.
+              </p>
+              
+              {notionStatus?.configured ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testNotionMutation.mutate()}
+                    disabled={testNotionMutation.isPending}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    {testNotionMutation.isPending ? "Testing..." : "Test Connection"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <a href={notionStatus.config?.pageUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View Notion Page
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Setup Required</h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                    To use Notion integration, you need to configure the connection with your Notion workspace.
                   </p>
+                  <Button variant="outline" size="sm" disabled>
+                    Contact Support for Setup
+                  </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link href="/settings/notion">
-                    <Button variant="outline" size="sm">
-                      {notionStatus?.configured ? 'Manage' : 'Set Up'}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  <p className="font-medium mb-2">Features:</p>
-                  <ul className="space-y-1 ml-4">
-                    <li>• Automatic database creation and management</li>
-                    <li>• Rich formatting with images and text blocks</li>
-                    <li>• Tag and sentiment analysis integration</li>
-                    <li>• Real-time synchronization</li>
-                  </ul>
-                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-                {notionStatus?.configured && (
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      ✓ Notion is connected and automatically syncing your journal entries.
-                    </p>
-                  </div>
-                )}
+        {/* Export Options */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Export Options</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Export your journal entries for use in other applications
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                While direct integrations provide seamless syncing, you can always export your data
+                and import it into other platforms like Google Docs, Word, or other note-taking applications.
+              </p>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Export as JSON
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  Export as CSV
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  Export as Markdown
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Export features coming soon
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

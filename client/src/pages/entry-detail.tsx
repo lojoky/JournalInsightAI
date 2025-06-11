@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Calendar, Image as ImageIcon, Brain, Heart, Tag, MessageSquare, Edit, Save, X, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import GoogleDocsSync from "@/components/google-docs-sync";
+
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function EntryDetail() {
