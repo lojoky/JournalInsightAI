@@ -102,6 +102,10 @@ export interface IStorage {
   getGoogleDocsEntryByJournalId(journalEntryId: number): Promise<GoogleDocsEntry | undefined>;
   getGoogleDocsEntriesByUser(userId: number): Promise<GoogleDocsEntry[]>;
   getLastGoogleDocsEntryByUser(userId: number): Promise<GoogleDocsEntry | undefined>;
+
+  // Duplicate detection methods
+  getJournalEntryByImageHash(imageHash: string): Promise<JournalEntry | undefined>;
+  getJournalEntryByTranscriptHash(transcriptHash: string): Promise<JournalEntry | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -587,6 +591,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(googleDocsEntries.userId, userId))
       .orderBy(desc(googleDocsEntries.createdAt))
       .limit(1);
+    return entry || undefined;
+  }
+
+  // Duplicate detection methods
+  async getJournalEntryByImageHash(imageHash: string): Promise<JournalEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.imageHash, imageHash));
+    return entry || undefined;
+  }
+
+  async getJournalEntryByTranscriptHash(transcriptHash: string): Promise<JournalEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.transcriptHash, transcriptHash));
     return entry || undefined;
   }
 }

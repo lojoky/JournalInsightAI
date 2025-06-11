@@ -787,24 +787,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const batchId = `bulk_${Date.now()}_${userId}`;
       const entries = [];
+      const skippedDuplicates: string[] = [];
 
       console.log(`Starting bulk upload of ${req.files.length} files for user ${userId}`);
 
-      // Create database entries for all files first
+      // First pass: Check for duplicate images and create entries for unique files
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i] as Express.Multer.File;
         const filename = path.basename(file.path);
         const webImageUrl = `/uploads/${filename}`;
         
-        const entry = await storage.createJournalEntry({
-          userId,
-          title: file.originalname.replace(/\.[^/.]+$/, "") || `Upload ${i + 1}`,
-          originalImageUrl: webImageUrl,
-          transcribedText: "",
-          ocrConfidence: 0,
-          processingStatus: "processing"
-        });
-        entries.push({ ...entry, filePath: file.path });
+        try {
+          // Compute image hash for duplicate detection
+          const { computeImageHash } = await import('./image-hash');
+          const imageHash = await computeImageHash(file.path);
+          
+          // Check if image hash already exists
+          const existingEntry = await storage.getJournalEntryByImageHash(imageHash);
+          if (existingEntry) {
+            console.log(`Duplicate image detected: ${file.originalname} (matches entry ${existingEntry.id})`);
+            skippedDuplicates.push(file.originalname);
+            continue;
+          }
+          
+          // Create entry for unique image
+          const entry = await storage.createJournalEntry({
+            userId,
+            title: file.originalname.replace(/\.[^/.]+$/, "") || `Upload ${i + 1}`,
+            originalImageUrl: webImageUrl,
+            transcribedText: "",
+            ocrConfidence: 0,
+            processingStatus: "processing",
+            imageHash
+          });
+          entries.push({ ...entry, filePath: file.path });
+        } catch (hashError) {
+          console.error(`Error computing hash for ${file.originalname}:`, hashError);
+          // If hashing fails, proceed without hash (may create duplicates)
+          const entry = await storage.createJournalEntry({
+            userId,
+            title: file.originalname.replace(/\.[^/.]+$/, "") || `Upload ${i + 1}`,
+            originalImageUrl: webImageUrl,
+            transcribedText: "",
+            ocrConfidence: 0,
+            processingStatus: "processing"
+          });
+          entries.push({ ...entry, filePath: file.path });
+        }
       }
 
       // Store batch info for progress tracking
