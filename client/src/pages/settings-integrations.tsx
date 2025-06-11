@@ -54,13 +54,26 @@ export default function SettingsIntegrations() {
       const response = await fetch('/api/google/auth', {
         credentials: 'include',
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("OAuth auth error:", errorData);
+        throw new Error(errorData.message || "Failed to start OAuth flow");
+      }
+      
       const data = await response.json();
+      console.log("OAuth response:", data);
+      
       if (data.authUrl) {
+        console.log("Redirecting to:", data.authUrl);
         window.location.href = data.authUrl;
+      } else {
+        throw new Error("No auth URL received");
       }
       return data;
     },
     onError: (error: Error) => {
+      console.error("OAuth mutation error:", error);
       toast({
         title: "Connection Failed",
         description: error.message,
