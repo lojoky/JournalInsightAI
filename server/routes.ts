@@ -786,14 +786,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/google/auth/callback", async (req, res) => {
     try {
-      const { code, state } = req.query;
+      console.log("=== Google OAuth Callback Debug ===");
+      console.log("Query params:", req.query);
+      console.log("Headers:", req.headers);
+      
+      const { code, state, error } = req.query;
+      
+      if (error) {
+        console.error("OAuth error from Google:", error);
+        return res.redirect("/settings/integrations?error=" + encodeURIComponent(error as string));
+      }
       
       if (!code || !state) {
-        return res.redirect("/?error=missing_params");
+        console.error("Missing code or state:", { code: !!code, state: !!state });
+        return res.redirect("/settings/integrations?error=missing_params");
       }
 
+      console.log("Parsing state:", state);
       const { userId } = JSON.parse(state as string);
+      console.log("User ID from state:", userId);
+      
+      console.log("Exchanging code for tokens...");
       const tokens = await exchangeCodeForTokens(code as string);
+      console.log("Tokens received:", { 
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        expiryDate: tokens.expiry_date 
+      });
 
       // Store credentials in database
       const credentials = {
@@ -805,15 +824,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         scope: GOOGLE_SCOPES.join(' ')
       };
 
-      // Check if credentials already exist and update or create
+      console.log("Checking for existing credentials...");
       const existingCredentials = await storage.getGoogleDocsCredentials(userId);
       
       if (existingCredentials) {
+        console.log("Updating existing credentials");
         await storage.updateGoogleDocsCredentials(userId, credentials);
       } else {
+        console.log("Creating new credentials");
         await storage.createGoogleDocsCredentials(credentials);
       }
 
+      console.log("Credentials saved successfully, redirecting...");
       res.redirect("/settings/integrations?google_connected=true");
     } catch (error) {
       console.error("Google auth callback error:", error);

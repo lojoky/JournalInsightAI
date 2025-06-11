@@ -32,7 +32,9 @@ export default function SettingsIntegrations() {
         credentials: 'include',
       });
       return response.json() as Promise<GoogleDocsStatus>;
-    }
+    },
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Check every 5 seconds for connection status updates
   });
 
   // Fetch Notion integration status
