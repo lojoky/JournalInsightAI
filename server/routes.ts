@@ -254,10 +254,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const { title } = req.body;
 
+      // Convert absolute file path to web URL
+      const filename = path.basename(req.file.path);
+      const webImageUrl = `/uploads/${filename}`;
+
       const entry = await storage.createJournalEntry({
         userId,
         title: title || "Untitled Entry",
-        originalImageUrl: req.file.path,
+        originalImageUrl: webImageUrl,
         transcribedText: "",
         ocrConfidence: 0,
         processingStatus: "processing"
@@ -356,10 +360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entries = [];
 
       for (const file of req.files) {
+        // Convert absolute file path to web URL
+        const filename = path.basename(file.path);
+        const webImageUrl = `/uploads/${filename}`;
+        
         const entry = await storage.createJournalEntry({
           userId,
           title: `Bulk Upload ${new Date().toLocaleDateString()}`,
-          originalImageUrl: file.path,
+          originalImageUrl: webImageUrl,
           transcribedText: "",
           ocrConfidence: 0,
           processingStatus: "processing"
