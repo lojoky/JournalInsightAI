@@ -402,12 +402,13 @@ export default function Entries() {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    console.log(`Delete button clicked for entry ${entry.id}`);
                                   }}
                                 >
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Entry</AlertDialogTitle>
                                   <AlertDialogDescription>
@@ -415,9 +416,13 @@ export default function Entries() {
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleDelete(entry.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log(`Confirmed delete for entry ${entry.id}`);
+                                      handleDelete(entry.id);
+                                    }}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     Delete
