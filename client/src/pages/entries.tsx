@@ -69,24 +69,32 @@ export default function Entries() {
   // Delete entry mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      console.log(`Making DELETE request for entry ${id}`);
       const response = await fetch(`/api/journal-entries/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
       
+      console.log(`DELETE response status: ${response.status}`);
+      
       if (!response.ok) {
         const error = await response.json();
+        console.error(`DELETE failed with error:`, error);
         throw new Error(error.message);
       }
       
-      return response.json();
+      const result = await response.json();
+      console.log(`DELETE success:`, result);
+      return result;
     },
     onSuccess: () => {
       toast({
         title: "Entry Deleted",
         description: "Your journal entry has been deleted successfully",
       });
+      // Invalidate all journal entry queries to update both pages
       queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recent-entries'] });
     },
     onError: (error: Error) => {
       toast({
@@ -121,7 +129,9 @@ export default function Entries() {
       });
       setSelectedEntries(new Set());
       setIsSelectMode(false);
+      // Invalidate all journal entry queries to update both pages
       queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recent-entries'] });
     },
     onError: (error: Error) => {
       toast({
@@ -149,6 +159,7 @@ export default function Entries() {
   };
 
   const handleDelete = (id: number) => {
+    console.log(`Attempting to delete entry ${id}`);
     deleteMutation.mutate(id);
   };
 
