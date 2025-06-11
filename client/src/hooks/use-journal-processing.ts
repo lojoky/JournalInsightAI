@@ -1,15 +1,19 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { processImageWithOCR, preprocessImageForOCR } from "@/lib/ocr";
 import { useToast } from "@/hooks/use-toast";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 interface UploadResponse {
   id: number;
-  message: string;
-  imageUrl: string;
-  processedImagePath?: string;
+  userId: number;
+  title: string;
+  originalImageUrl: string;
+  transcribedText: string;
+  ocrConfidence: number;
+  processingStatus: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AnalysisResponse {
@@ -23,8 +27,59 @@ export function useJournalProcessing() {
   const [currentEntry, setCurrentEntry] = useState<JournalEntryWithDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+  const [pollingEntryId, setPollingEntryId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Status polling query for active processing entries
+  const { data: entryStatus } = useQuery({
+    queryKey: ['/api/journal-entries', pollingEntryId, 'status'],
+    queryFn: async () => {
+      if (!pollingEntryId) return null;
+      const response = await fetch(`/api/journal-entries/${pollingEntryId}/status`);
+      if (!response.ok) throw new Error('Failed to fetch status');
+      return response.json();
+    },
+    enabled: !!pollingEntryId,
+    refetchInterval: 2000, // Poll every 2 seconds
+    refetchIntervalInBackground: true
+  });
+
+  // Update current entry when status changes
+  useEffect(() => {
+    if (entryStatus && currentEntry && entryStatus.id === currentEntry.id) {
+      setCurrentEntry(prev => prev ? {
+        ...prev,
+        processingStatus: entryStatus.processingStatus,
+        transcribedText: entryStatus.transcribedText || prev.transcribedText,
+        ocrConfidence: entryStatus.ocrConfidence || prev.ocrConfidence,
+        title: entryStatus.title || prev.title,
+        updatedAt: entryStatus.updatedAt || prev.updatedAt
+      } : null);
+
+      // Stop polling when processing is complete or failed
+      if (entryStatus.processingStatus === 'completed' || entryStatus.processingStatus === 'failed') {
+        setPollingEntryId(null);
+        setIsProcessing(false);
+        
+        // Refresh the entries list
+        queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+        
+        if (entryStatus.processingStatus === 'completed') {
+          toast({
+            title: "Processing complete",
+            description: "Your journal entry has been successfully processed and analyzed.",
+          });
+        } else {
+          toast({
+            title: "Processing failed",
+            description: entryStatus.transcribedText || "There was an error processing your journal entry.",
+            variant: "destructive",
+          });
+        }
+      }
+    }
+  }, [entryStatus, currentEntry, queryClient, toast]);
 
   // Upload mutation
   const uploadMutation = useMutation({
@@ -42,20 +97,23 @@ export function useJournalProcessing() {
       return result;
     },
     onSuccess: (data) => {
-      setCurrentEntry({
+      const newEntry = {
         id: data.id,
-        title: 'Uploaded Entry',
-        originalImageUrl: data.imageUrl,
-        transcribedText: null,
-        ocrConfidence: null,
-        processingStatus: 'pending',
-        userId: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        title: data.title || 'Uploaded Entry',
+        originalImageUrl: data.originalImageUrl,
+        transcribedText: data.transcribedText || '',
+        ocrConfidence: data.ocrConfidence || 0,
+        processingStatus: data.processingStatus || 'processing',
+        userId: data.userId,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
         themes: [],
         tags: [],
         sentimentAnalysis: undefined
-      } as any);
+      } as JournalEntryWithDetails;
+      
+      setCurrentEntry(newEntry);
+      setPollingEntryId(data.id); // Start polling for this entry
     },
     onError: (error) => {
       console.error('Upload error:', error);
@@ -159,36 +217,19 @@ export function useJournalProcessing() {
     }
   });
 
-  // Main upload and process function
+  // Simplified upload function that relies on backend processing
   const uploadFile = useCallback(async (file: File, title = "Untitled Entry") => {
     setIsProcessing(true);
     
     try {
-      // 1. Upload file
-      const uploadResult = await uploadMutation.mutateAsync({ file, title });
-      
-      // 2. Extract text using OpenAI Vision (much better for handwriting than Tesseract)
-      console.log('Extracting text using OpenAI Vision...');
-      await aiTextExtractionMutation.mutateAsync(uploadResult.id);
-
-      // 3. Analyze with AI
-      await analysisMutation.mutateAsync(uploadResult.id);
-
-      toast({
-        title: "Processing complete",
-        description: "Your journal entry has been successfully processed and analyzed.",
-      });
+      // Upload file - backend handles all processing automatically
+      await uploadMutation.mutateAsync({ file, title });
     } catch (error) {
       console.error('Processing error:', error);
-      toast({
-        title: "Processing failed",
-        description: "There was an error processing your journal entry.",
-        variant: "destructive",
-      });
-    } finally {
       setIsProcessing(false);
+      setPollingEntryId(null);
     }
-  }, [uploadMutation, transcriptionMutation, analysisMutation, toast]);
+  }, [uploadMutation]);
 
   // Function to update transcription
   const processTranscription = useCallback(async (transcription: string) => {
