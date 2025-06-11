@@ -318,8 +318,9 @@ export default function ExportDialog({ children, selectedEntries, allEntries }: 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="docx">Word Document (.doc)</SelectItem>
+                  <SelectItem value="docx">Word Document (.docx)</SelectItem>
                   <SelectItem value="html">HTML Document (.html)</SelectItem>
+                  <SelectItem value="txt">Plain Text (.txt)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
