@@ -11,7 +11,7 @@ import {
   addJournalEntryToNotion,
   getNotionDatabases 
 } from "./notion";
-import { syncJournalEntryToNotion, syncAllUserEntriesToNotion } from "./notion-sync";
+import { syncJournalEntryToNotion, syncAllUserEntriesToNotion, cleanupNotionEntriesForMerge } from "./notion-sync";
 import { splitEntriesByDate, formatDateForLog } from "./date-parser";
 
 import { 
@@ -576,6 +576,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         regenerateAnalysis
       );
 
+      // Get the merged entry with full details for Notion sync
+      const mergedEntryWithDetails = await storage.getJournalEntry(mergedEntry.id);
+      
+      // Handle Notion cleanup and sync for merged entries
+      try {
+        await cleanupNotionEntriesForMerge(entryIds, mergedEntryWithDetails!);
+        console.log(`Notion cleanup completed for merged entry ${mergedEntry.id}`);
+      } catch (error) {
+        console.error(`Notion cleanup failed for merged entry ${mergedEntry.id}:`, error);
+        // Continue with merge operation even if Notion sync fails
+      }
+
       // Optionally delete original entries
       if (deleteOriginals) {
         for (const entryId of entryIds) {
@@ -590,7 +602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        mergedEntry: await storage.getJournalEntry(mergedEntry.id),
+        mergedEntry: mergedEntryWithDetails,
         deletedOriginals: deleteOriginals
       });
     } catch (error) {

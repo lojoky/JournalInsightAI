@@ -8,6 +8,7 @@ import {
 } from "./notion";
 import type { JournalEntryWithDetails } from "@shared/schema";
 import OpenAI from "openai";
+import { Client } from "@notionhq/client";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -142,6 +143,66 @@ Response (just the date or "none"):`;
     }
     
     throw error;
+  }
+}
+
+export async function cleanupNotionEntriesForMerge(
+  originalEntryIds: number[], 
+  mergedEntry: JournalEntryWithDetails
+): Promise<void> {
+  try {
+    console.log(`Cleaning up Notion entries for merged entry ${mergedEntry.id}`);
+    
+    // Get user's Notion integration
+    const integration = await storage.getUserIntegration(mergedEntry.userId, "notion");
+    
+    if (!integration || !integration.isEnabled || !integration.config) {
+      console.log(`Notion integration not enabled for user ${mergedEntry.userId}, skipping cleanup`);
+      return;
+    }
+
+    const config = integration.config as {
+      integrationToken: string;
+      pageId: string;
+      databaseName: string;
+    };
+
+    const notion = createNotionClient(config.integrationToken);
+
+    // Delete original Notion entries
+    for (const originalId of originalEntryIds) {
+      try {
+        const notionEntry = await storage.getNotionEntryByJournalId(originalId);
+        if (notionEntry) {
+          console.log(`Deleting Notion page ${notionEntry.notionPageId} for original entry ${originalId}`);
+          
+          // Archive/delete the Notion page
+          await notion.pages.update({
+            page_id: notionEntry.notionPageId,
+            archived: true
+          });
+
+          // Remove the Notion entry record from our database
+          await storage.updateNotionEntry(notionEntry.id, {
+            syncStatus: "deleted"
+          });
+          
+          console.log(`Successfully deleted Notion entry for journal ${originalId}`);
+        }
+      } catch (error) {
+        console.error(`Failed to delete Notion entry for journal ${originalId}:`, error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    // Create new Notion entry for the merged entry
+    console.log(`Creating Notion entry for merged journal ${mergedEntry.id}`);
+    await syncJournalEntryToNotion(mergedEntry);
+    
+    console.log(`Successfully completed Notion cleanup for merged entry ${mergedEntry.id}`);
+  } catch (error) {
+    console.error(`Failed to cleanup Notion entries for merge:`, error);
+    // Don't throw here - we don't want to fail the merge operation if Notion sync fails
   }
 }
 
