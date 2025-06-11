@@ -183,6 +183,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/journal-entries/:id/status", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const entry = await storage.getJournalEntry(id);
+      if (!entry || entry.userId !== req.session.userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+
+      res.json({
+        id: entry.id,
+        processingStatus: entry.processingStatus,
+        transcribedText: entry.transcribedText,
+        ocrConfidence: entry.ocrConfidence,
+        title: entry.title,
+        updatedAt: entry.updatedAt
+      });
+    } catch (error) {
+      console.error("Status check error:", error);
+      res.status(500).json({ message: "Failed to check status" });
+    }
+  });
+
   app.post("/api/journal-entries/:id/edit", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -244,11 +267,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Process asynchronously
       try {
+        console.log(`Starting OCR processing for entry ${entry.id}`);
         const ocrResult = await extractTextFromImage(req.file.path);
+        console.log(`OCR completed for entry ${entry.id}, text length: ${ocrResult.text?.length || 0}`);
         
-        if (ocrResult.text) {
+        if (ocrResult.text && ocrResult.text.trim().length > 0) {
+          console.log(`Starting AI analysis for entry ${entry.id}`);
           const analysisResult = await analyzeJournalEntry(ocrResult.text);
           const sentimentResult = await analyzeSentiment(ocrResult.text);
+          console.log(`AI analysis completed for entry ${entry.id}`);
 
           await storage.updateJournalEntry(entry.id, {
             title: analysisResult.title || entry.title,
@@ -299,14 +326,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } else {
+          console.log(`No text extracted from entry ${entry.id}, marking as failed`);
           await storage.updateJournalEntry(entry.id, {
-            processingStatus: "failed"
+            processingStatus: "failed",
+            transcribedText: "No readable text found in image"
           });
         }
       } catch (processingError) {
-        console.error("Processing error:", processingError);
+        console.error(`Processing error for entry ${entry.id}:`, processingError);
+        const errorMessage = processingError instanceof Error ? processingError.message : "Unknown processing error";
         await storage.updateJournalEntry(entry.id, {
-          processingStatus: "failed"
+          processingStatus: "failed",
+          transcribedText: `Processing failed: ${errorMessage}`
         });
       }
     } catch (error) {
