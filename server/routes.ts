@@ -181,8 +181,10 @@ async function processBulkEntriesSequentially(entries: any[], userId: number, ba
           try {
             const completeEntry = await storage.getJournalEntry(entry.id);
             if (completeEntry) {
-              await syncJournalEntryToNotion(completeEntry);
-              console.log(`Entry ${entry.id} synced to Notion successfully`);
+              const syncSuccess = await syncJournalEntryToNotion(completeEntry);
+              if (syncSuccess) {
+                console.log(`Entry ${entry.id} synced to Notion successfully`);
+              }
             }
           } catch (notionError) {
             console.error(`Notion sync failed for entry ${entry.id}:`, notionError);
@@ -419,8 +421,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const updatedEntryWithDetails = await storage.getJournalEntry(id);
         if (updatedEntryWithDetails) {
-          await syncJournalEntryToNotion(updatedEntryWithDetails);
-          console.log(`Entry ${id} synced to Notion successfully`);
+          const syncSuccess = await syncJournalEntryToNotion(updatedEntryWithDetails);
+          if (syncSuccess) {
+            console.log(`Entry ${id} synced to Notion successfully`);
+          }
         }
       } catch (notionError) {
         console.error(`Notion sync failed for entry ${id}:`, notionError);

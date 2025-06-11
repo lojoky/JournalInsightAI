@@ -37,34 +37,76 @@ export default function Home() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#6366F1] rounded-lg flex items-center justify-center">
-                <Brain className="text-white w-5 h-5" />
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#6366F1] rounded-lg flex items-center justify-center">
+                <Brain className="text-white w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-[#111827]">JournalAI</h1>
+              <div className="hidden sm:block">
+                <h1 className="text-lg sm:text-xl font-semibold text-[#111827]">JournalAI</h1>
                 <p className="text-xs text-gray-500">AI-Powered Journal Processing</p>
               </div>
+              <h1 className="text-lg font-semibold text-[#111827] sm:hidden">JournalAI</h1>
             </div>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
               <span className="text-[#111827] hover:text-[#6366F1] font-medium">Dashboard</span>
               <a href="/entries" className="text-gray-600 hover:text-[#6366F1]">Entries</a>
               <a href="/insights" className="text-gray-600 hover:text-[#6366F1]">Insights</a>
               <a href="/settings" className="text-gray-600 hover:text-[#6366F1]">Settings</a>
             </nav>
-            <div className="flex items-center space-x-3">
-              {/* Google Docs integration will be rebuilt */}
-              <ExportDialog>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </ExportDialog>
+            
+            {/* Mobile & Desktop Actions */}
+            <div className="flex items-center space-x-1 sm:space-x-3">
+              {/* Desktop Export */}
+              <div className="hidden sm:block">
+                <ExportDialog>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </ExportDialog>
+              </div>
+              
+              {/* Mobile Export */}
+              <div className="block sm:hidden">
+                <ExportDialog>
+                  <Button variant="outline" size="sm" className="p-2">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </ExportDialog>
+              </div>
+              
+              {/* Mobile Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="md:hidden p-2">
+                    <Menu className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem>
+                    <a href="/entries" className="w-full">Entries</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <a href="/insights" className="w-full">Insights</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <a href="/settings" className="w-full">Settings</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {/* Desktop User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden md:flex">
                     <User className="w-4 h-4 mr-2" />
-                    {user?.username}
+                    <span className="hidden lg:inline">{user?.username}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -79,14 +121,14 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-[#111827] mb-2">Process Journal Entry</h2>
-          <p className="text-gray-600">Upload an image of your handwritten journal entry to extract insights and organize your thoughts.</p>
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#111827] mb-2">Process Journal Entry</h2>
+          <p className="text-sm sm:text-base text-gray-600">Upload an image of your handwritten journal entry to extract insights and organize your thoughts.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
           {/* Left Column: Upload and Processing */}
           <div className="space-y-6">
             <FileUpload 
@@ -141,23 +183,25 @@ export default function Home() {
 
             {currentEntry && (
               <Card className="journal-card">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-[#111827] mb-4">Save & Export</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button className="bg-[#6366F1] text-white px-4 py-3 rounded-lg hover:bg-indigo-700 font-medium flex items-center justify-center">
-                      <span className="mr-2">💾</span>Save Entry
-                    </button>
-                    <button className="border border-gray-300 text-[#111827] px-4 py-3 rounded-lg hover:bg-gray-50 font-medium flex items-center justify-center">
-                      <span className="mr-2">📥</span>Export Data
-                    </button>
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="text-lg font-semibold text-[#111827] mb-4">Actions</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <Button className="bg-[#6366F1] text-white hover:bg-indigo-700 py-3 h-auto">
+                      Save Entry
+                    </Button>
+                    <ExportDialog>
+                      <Button variant="outline" className="py-3 h-auto">
+                        Export Data
+                      </Button>
+                    </ExportDialog>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <button className="text-[#8B5CF6] hover:text-purple-700 text-sm font-medium flex items-center justify-center">
-                      <span className="mr-2">📁</span>Add to Collection
-                    </button>
-                    <button className="text-[#F59E0B] hover:text-yellow-700 text-sm font-medium flex items-center justify-center">
-                      <span className="mr-2">🔔</span>Set Reminder
-                    </button>
+                  <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <Button variant="ghost" className="text-[#8B5CF6] hover:text-purple-700 py-2 h-auto">
+                      Add to Collection
+                    </Button>
+                    <Button variant="ghost" className="text-[#F59E0B] hover:text-yellow-700 py-2 h-auto">
+                      Set Reminder
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
