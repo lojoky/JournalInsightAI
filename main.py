@@ -275,7 +275,31 @@ async def upload_images(
     prompt_file: Optional[str] = Form(None),
     preset: Optional[str] = None
 ):
-    """Upload and process 1-100 journal images through the ingest pipeline"""
+    """
+    Upload and process 1-100 journal images through the ingest pipeline.
+    
+    Parameters:
+    - files: List of image files (JPG, PNG, GIF, WebP) - maximum 100 files
+    - prompt_file: Optional custom prompt configuration file path (form field)
+    - preset: Optional preset name for specialized analysis (query parameter)
+    
+    Available presets:
+    - therapist: Therapeutic analysis focusing on mental health patterns
+    - coach: Performance coaching focusing on goals and achievements  
+    - stoic: Philosophical analysis focusing on wisdom and virtue
+    - productivity: Efficiency analysis focusing on time management
+    
+    Priority order for prompt selection:
+    1. preset (query parameter)
+    2. prompt_file (form field) 
+    3. default configuration
+    
+    Returns:
+    - processed: List of created journal entries with IDs and dates
+    - skipped_duplicates: List of filenames that were duplicates
+    - errors: List of processing errors
+    - prompt_config_used: Indicates which prompt configuration was applied
+    """
     import uuid
     import aiofiles
     from ingest_journal_images import ingest_journal_images
