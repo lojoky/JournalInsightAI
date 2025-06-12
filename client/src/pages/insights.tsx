@@ -204,15 +204,11 @@ export default function Insights() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {sentimentData.slice(-5).reverse().map((entry, index) => (
+                  {completedEntries.slice(-5).reverse().map((entry, index) => (
                     <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
-                      <span className="text-sm text-gray-600">{entry.date}</span>
-                      <Badge 
-                        variant={entry.overall === 'positive' ? 'default' : 
-                               entry.overall === 'negative' ? 'destructive' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {entry.overall}
+                      <span className="text-sm text-gray-600">{new Date(entry.createdAt).toLocaleDateString()}</span>
+                      <Badge variant="default" className="text-xs">
+                        {entry.title}
                       </Badge>
                     </div>
                   ))}
