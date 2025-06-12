@@ -4,7 +4,7 @@ FAISS vector similarity search index for journal entries and influences
 import faiss
 import numpy as np
 import os
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Union
 from embedding import embed, base64_to_embedding, embedding_to_base64
 import pickle
 
@@ -19,8 +19,8 @@ class FAISSIndex:
         """
         self.index_path = index_path
         self.metadata_path = metadata_path
-        self.index = None
-        self.metadata = []  # List of dicts with id, type, etc.
+        self.index: Optional[faiss.Index] = None
+        self.metadata: List[Dict[str, Any]] = []
         self.dimension = 1536  # text-embedding-3-small dimension
         
         # Load existing index if it exists
@@ -80,7 +80,8 @@ class FAISSIndex:
             
             # Add to FAISS index
             if self.index is not None:
-                self.index.add(embedding.reshape(1, -1))
+                embedding_array = embedding.reshape(1, -1).astype(np.float32)
+                self.index.add(embedding_array)
             
             # Store metadata
             metadata_entry = {
@@ -113,7 +114,7 @@ class FAISSIndex:
             List of tuples (entry_id, similarity_score, metadata)
         """
         try:
-            if self.index.ntotal == 0:
+            if not self.index or self.index.ntotal == 0:
                 return []
             
             # Generate query embedding
@@ -122,7 +123,8 @@ class FAISSIndex:
             
             # Search in FAISS
             search_k = min(k * 3, self.index.ntotal)  # Search more to allow filtering
-            scores, indices = self.index.search(query_embedding.reshape(1, -1), search_k)
+            query_array = query_embedding.reshape(1, -1).astype(np.float32)
+            scores, indices = self.index.search(query_array, search_k)
             
             results = []
             for score, idx in zip(scores[0], indices[0]):
