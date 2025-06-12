@@ -200,7 +200,12 @@ export class DatabaseStorage implements IStorage {
             ...entry,
             themes: entryThemes,
             tags: entryTagsData,
-            sentimentAnalysis: sentiment
+            sentimentAnalysis: sentiment,
+            thoughtfulQuestions: [
+              "Have you thought about what patterns you notice in your spiritual growth?",
+              "What would it look like to trust this process more deeply?",
+              "How might you honor both your progress and your struggles?"
+            ]
           };
         } catch (error) {
           console.error(`Error processing entry ${entry.id}:`, error);
@@ -208,7 +213,8 @@ export class DatabaseStorage implements IStorage {
             ...entry,
             themes: [],
             tags: [],
-            sentimentAnalysis: undefined
+            sentimentAnalysis: undefined,
+            thoughtfulQuestions: []
           };
         }
       })

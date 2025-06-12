@@ -200,14 +200,35 @@ def analyze_journal_block(text: str, prompt_config: Dict[str, str]) -> Dict:
         else:
             result = {"tags": [], "core_insights": []}
         
-        # Validate and clean results
-        tags = result.get("tags", [])[:5]  # Limit to 5 tags
-        insights = result.get("core_insights", [])[:3]  # Limit to 3 insights
-        
-        return {
-            "tags": [str(tag) for tag in tags],
-            "core_insights": [str(insight) for insight in insights]
-        }
+        # Handle both old and new response formats
+        if "themes" in result and "thoughtful_questions" in result:
+            # New format with themes and thoughtful questions
+            themes = result.get("themes", [])[:3]  # Limit to 3 themes
+            thoughtful_questions = result.get("thoughtful_questions", [])[:3]  # Limit to 3 questions
+            
+            # Extract tags from theme titles for backward compatibility
+            tags = [theme.get("title", "").strip() for theme in themes if theme.get("title")]
+            
+            # Extract insights from theme observations for backward compatibility
+            insights = [theme.get("observation", "").strip() for theme in themes if theme.get("observation")]
+            
+            return {
+                "tags": tags,
+                "core_insights": insights,
+                "thoughtful_questions": [str(q) for q in thoughtful_questions],
+                "themes": themes
+            }
+        else:
+            # Old format - backward compatibility
+            tags = result.get("tags", [])[:5]  # Limit to 5 tags
+            insights = result.get("core_insights", [])[:3]  # Limit to 3 insights
+            
+            return {
+                "tags": [str(tag) for tag in tags],
+                "core_insights": [str(insight) for insight in insights],
+                "thoughtful_questions": [],
+                "themes": []
+            }
         
     except Exception as e:
         print(f"Error analyzing journal block: {e}")
