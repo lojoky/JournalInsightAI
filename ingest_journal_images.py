@@ -68,10 +68,15 @@ def ocr_with_openai(image_path: str) -> Tuple[str, float]:
                     ]
                 }
             ],
-            max_tokens=1000
+            max_tokens=1000,
+            timeout=30
         )
         
-        text = response.choices[0].message.content.strip()
+        text = response.choices[0].message.content
+        if text:
+            text = text.strip()
+        else:
+            text = ""
         confidence = 0.9  # OpenAI Vision typically has high confidence
         return text, confidence
         
@@ -159,7 +164,11 @@ def analyze_journal_block(text: str) -> Dict:
             max_tokens=500
         )
         
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        if content:
+            result = json.loads(content)
+        else:
+            result = {"tags": [], "core_insights": []}
         
         # Validate and clean results
         tags = result.get("tags", [])[:5]  # Limit to 5 tags
