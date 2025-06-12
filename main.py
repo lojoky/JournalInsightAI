@@ -1,14 +1,20 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import List, Optional
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Import database setup
-from db import engine, Base
+# Import database setup and models
+from db import engine, Base, get_db, JournalEntry, Influence
+from embedding import embed, embedding_to_base64, base64_to_embedding
+from faiss_index import faiss_index
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
