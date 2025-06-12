@@ -25,9 +25,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create Base class
 Base = declarative_base()
 
-# Journal Entry model
+# Journal Entry model for FastAPI project
 class JournalEntry(Base):
-    __tablename__ = "journal_entries"
+    __tablename__ = "fastapi_journal_entries"
     
     id = Column(Integer, primary_key=True)
     date = Column(DateTime)                  # detected date in the entry
