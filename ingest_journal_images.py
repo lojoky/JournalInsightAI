@@ -196,7 +196,13 @@ def analyze_journal_block(text: str, prompt_config: Dict[str, str]) -> Dict:
         
         content = response.choices[0].message.content
         if content:
-            result = json.loads(content)
+            print(f"OpenAI response: {content[:200]}...")  # Debug log
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error: {e}")
+                print(f"Raw content: {content}")
+                result = {"tags": [], "core_insights": []}
         else:
             result = {"tags": [], "core_insights": []}
         
