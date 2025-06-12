@@ -245,7 +245,7 @@ export default function EntryDetail() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Brain className="w-5 h-5 mr-2" />
-                Identified Themes
+                Themes
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -264,65 +264,23 @@ export default function EntryDetail() {
           </Card>
         )}
 
-        {/* Sentiment Analysis */}
-        {entry.sentimentAnalysis && (
+        {/* Thoughtful Questions */}
+        {entry.thoughtfulQuestions && entry.thoughtfulQuestions.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Heart className="w-5 h-5 mr-2" />
-                Emotional Analysis
+                Have you thought about…
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Overall Sentiment</span>
-                  <Badge 
-                    variant={entry.sentimentAnalysis.overallSentiment === 'positive' ? 'default' : 
-                           entry.sentimentAnalysis.overallSentiment === 'negative' ? 'destructive' : 'secondary'}
-                  >
-                    {entry.sentimentAnalysis.overallSentiment}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Positive</span>
-                    <span className="text-sm font-medium">{entry.sentimentAnalysis.positiveScore}%</span>
+              <div className="space-y-3">
+                {entry.thoughtfulQuestions.map((question, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <span className="w-2 h-2 bg-[#6366F1] rounded-full mt-2 flex-shrink-0" />
+                    <p className="text-sm text-gray-700">{question}</p>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full" 
-                      style={{ width: `${entry.sentimentAnalysis.positiveScore}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Neutral</span>
-                    <span className="text-sm font-medium">{entry.sentimentAnalysis.neutralScore}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gray-500 h-2 rounded-full" 
-                      style={{ width: `${entry.sentimentAnalysis.neutralScore}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Concern</span>
-                    <span className="text-sm font-medium">{entry.sentimentAnalysis.concernScore}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-red-500 h-2 rounded-full" 
-                      style={{ width: `${entry.sentimentAnalysis.concernScore}%` }}
-                    ></div>
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>

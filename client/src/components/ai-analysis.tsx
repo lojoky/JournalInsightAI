@@ -33,7 +33,7 @@ export default function AIAnalysis({ entry }: AIAnalysisProps) {
           <div className="bg-purple-50 rounded-lg p-4">
             <h4 className="font-semibold text-[#8B5CF6] mb-3 flex items-center">
               <Lightbulb className="w-4 h-4 mr-2" />
-              Key Themes Identified
+              Themes
             </h4>
             <div className="space-y-3">
               {themes.map((theme, index) => (
