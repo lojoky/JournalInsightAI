@@ -272,7 +272,8 @@ async def get_search_stats():
 @app.post("/upload-images")
 async def upload_images(
     files: List[UploadFile] = File(...),
-    prompt_file: Optional[str] = Form(None)
+    prompt_file: Optional[str] = Form(None),
+    preset: Optional[str] = None
 ):
     """Upload and process 1-100 journal images through the ingest pipeline"""
     import uuid
@@ -289,8 +290,23 @@ async def upload_images(
         if not file.content_type or file.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
     
-    # Determine prompt configuration file
-    prompt_config_path = prompt_file if prompt_file else "prompt_config.json"
+    # Determine prompt configuration file with priority order:
+    # 1. preset (query param) 2. prompt_file (form field) 3. default
+    prompt_config_path = None
+    prompt_source = None
+    
+    if preset:
+        preset_path = f"prompt_library/{preset}.json"
+        if not os.path.exists(preset_path):
+            raise HTTPException(status_code=400, detail=f"Prompt preset '{preset}' not found.")
+        prompt_config_path = preset_path
+        prompt_source = f"preset:{preset}"
+    elif prompt_file:
+        prompt_config_path = prompt_file
+        prompt_source = f"file:{prompt_file}"
+    else:
+        prompt_config_path = "prompt_config.json"
+        prompt_source = "default"
     
     # Create uploads directory if it doesn't exist
     uploads_dir = "uploads"
@@ -329,7 +345,7 @@ async def upload_images(
             "skipped_duplicates": [os.path.basename(f) for f in saved_files 
                                  if os.path.basename(f) in summary.get("skipped_duplicates", [])],
             "errors": summary.get("errors", []),
-            "prompt_config_used": prompt_config_path
+            "prompt_config_used": prompt_source
         }
         
     except Exception as e:
