@@ -20,8 +20,16 @@ from simple_faiss import faiss_index
 async def lifespan(app: FastAPI):
     # Create database tables on startup
     Base.metadata.create_all(bind=engine)
+    
+    # Load FAISS index into app state
+    app.state.faiss_index = faiss_index
+    print("Loaded FAISS index into app state")
+    
     yield
-    # Cleanup on shutdown if needed
+    
+    # Save FAISS index on shutdown
+    app.state.faiss_index.save_index()
+    print("Saved FAISS index on shutdown")
 
 # Create FastAPI app
 app = FastAPI(
@@ -259,6 +267,74 @@ async def search_entries(search_request: SearchRequest):
 async def get_search_stats():
     """Get FAISS index statistics"""
     return faiss_index.get_stats()
+
+# Journal image upload endpoint
+@app.post("/upload-images")
+async def upload_images(files: List[UploadFile] = File(...)):
+    """Upload and process 1-100 journal images through the ingest pipeline"""
+    import uuid
+    import aiofiles
+    from ingest_journal_images import ingest_journal_images
+    
+    # Validate file count
+    if len(files) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 files allowed")
+    
+    # Validate file types
+    allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    for file in files:
+        if not file.content_type or file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
+    
+    # Create uploads directory if it doesn't exist
+    uploads_dir = "uploads"
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    saved_files = []
+    
+    try:
+        # Save uploaded files
+        for file in files:
+            # Generate unique filename
+            file_extension = os.path.splitext(file.filename or "image.jpg")[1]
+            unique_filename = f"{uuid.uuid4()}{file_extension}"
+            file_path = os.path.join(uploads_dir, unique_filename)
+            
+            # Save file asynchronously
+            async with aiofiles.open(file_path, 'wb') as f:
+                content = await file.read()
+                await f.write(content)
+            
+            saved_files.append(file_path)
+        
+        # Process images through ingest pipeline
+        summary = ingest_journal_images(saved_files)
+        
+        # Format response
+        processed_entries = []
+        for entry in summary.get("processed", []):
+            processed_entries.append({
+                "entry_id": entry["entry_id"],
+                "date": entry["date"]
+            })
+        
+        return {
+            "processed": processed_entries,
+            "skipped_duplicates": [os.path.basename(f) for f in saved_files 
+                                 if os.path.basename(f) in summary.get("skipped_duplicates", [])],
+            "errors": summary.get("errors", [])
+        }
+        
+    except Exception as e:
+        # Clean up saved files on error
+        for file_path in saved_files:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except:
+                pass
+        
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):

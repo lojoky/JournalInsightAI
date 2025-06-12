@@ -1,0 +1,70 @@
+# Ticket 3: Journal-image ingest pipeline
+
+## Goal
+Turn 1-N uploaded images of handwritten pages into structured **JournalEntry** rows and FAISS vectors, while skipping duplicates and splitting multi-date pages.
+
+------------------------------------------------
+1. CLI script  ── ingest_journal_images.py
+------------------------------------------------
+Usage:
+  python ingest_journal_images.py page1.jpg page2.jpg …
+
+Steps per image
+1. Perceptual hash via imagehash.phash  
+   • if hash exists in DB → skip.
+2. OCR  
+   • OpenAI Vision (gpt-4o-mini, features=[ocr]); fallback to pytesseract.  
+   • capture `raw_text`.
+3. Date split  
+   • dateparser.search_dates(raw_text, languages=["en"]).  
+   • if >1 unique date → split on those date strings.
+4. Per-block processing  
+   • SHA-256 the block text – if hash exists → skip.  
+   • Chat prompt (strict JSON):
+
+     SYSTEM: You are a JSON generator…  
+     USER: Transcript: <block>  
+     Return `{ "tags": [...≤5], "core_insights": [...≤3 sentences] }`
+
+   • embed(block) → FAISS (+ base64 in DB).  
+   • Insert JournalEntry:
+        date, text, tags, core_insights, image_paths=[original paths],
+        image_hash, transcript_hash, embedding.
+5. At exit, print summary:
+   processed count, duplicates skipped.
+
+------------------------------------------------
+2. HTTP endpoint
+------------------------------------------------
+POST /upload-images   (multipart)
+  field `files[]` = 1-100 images
+
+• Save each file to /uploads/<uuid>.jpg  
+• Call ingest_journal_images pipeline  
+• JSON response:
+  {
+    "processed": [ { "entry_id": 17, "date": "2025-06-11" }, … ],
+    "skipped_duplicates": ["page1.jpg", … ]
+  }
+
+------------------------------------------------
+3. App startup/shutdown
+------------------------------------------------
+• On startup: load FAISS index into `app.state.faiss_index`.  
+• ingest pipeline updates the in-memory index; on shutdown call save_faiss().
+
+------------------------------------------------
+4. Tests
+------------------------------------------------
+tests/test_ingest.py
+  – post two sample jpgs  
+  – first call: 200 + processed==2  
+  – second call: skipped_duplicates==2
+
+------------------------------------------------
+Deliverables
+------------------------------------------------
+- ingest_journal_images.py
+- /upload-images route in main.py
+- any tweaks to embeddings.py for FAISS access
+- passing tests
