@@ -7,6 +7,7 @@ import sys
 import os
 import hashlib
 import json
+import argparse
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime
 import imagehash
@@ -22,6 +23,32 @@ from simple_faiss import faiss_index
 
 # Initialize OpenAI client
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def load_prompt_config(config_path: str = "prompt_config.json") -> Dict[str, str]:
+    """Load prompt configuration from JSON file"""
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        # Validate required keys
+        required_keys = ["system_prompt", "user_prompt_template"]
+        for key in required_keys:
+            if key not in config:
+                raise ValueError(f"Missing required key '{key}' in prompt config")
+        
+        return config
+    except FileNotFoundError:
+        print(f"Warning: Prompt config file '{config_path}' not found. Using default prompts.")
+        return {
+            "system_prompt": "You are a JSON generator. Analyze journal text and return structured data. Keep tags concise (≤5) and insights brief (≤3 sentences each).",
+            "user_prompt_template": "Transcript: {transcript}\n\nReturn {{ \"tags\": [...≤5], \"core_insights\": [...≤3 sentences] }}"
+        }
+    except Exception as e:
+        print(f"Error loading prompt config '{config_path}': {e}")
+        return {
+            "system_prompt": "You are a JSON generator. Analyze journal text and return structured data. Keep tags concise (≤5) and insights brief (≤3 sentences each).",
+            "user_prompt_template": "Transcript: {transcript}\n\nReturn {{ \"tags\": [...≤5], \"core_insights\": [...≤3 sentences] }}"
+        }
 
 def compute_image_hash(image_path: str) -> str:
     """Compute perceptual hash of image using imagehash.phash"""
@@ -145,19 +172,22 @@ def extract_dates_and_split(text: str) -> List[Tuple[Optional[datetime], str]]:
         print(f"Error extracting dates: {e}")
         return [(None, text)]
 
-def analyze_journal_block(text: str) -> Dict:
+def analyze_journal_block(text: str, prompt_config: Dict[str, str]) -> Dict:
     """Analyze journal text block to extract tags and insights using OpenAI"""
     try:
+        # Format the user prompt with the transcript
+        user_prompt = prompt_config["user_prompt_template"].format(transcript=text)
+        
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a JSON generator. Analyze journal text and return structured data. Keep tags concise (≤5) and insights brief (≤3 sentences each)."
+                    "content": prompt_config["system_prompt"]
                 },
                 {
                     "role": "user",
-                    "content": f"Transcript: {text}\n\nReturn {{ \"tags\": [...≤5], \"core_insights\": [...≤3 sentences] }}"
+                    "content": user_prompt
                 }
             ],
             response_format={"type": "json_object"},
@@ -191,7 +221,7 @@ def check_duplicate_text(text_hash: str, db: Session) -> Optional[JournalEntry]:
     """Check if text hash already exists in database"""
     return db.query(JournalEntry).filter(JournalEntry.transcript_hash == text_hash).first()
 
-def process_journal_image(image_path: str, db: Session) -> Dict:
+def process_journal_image(image_path: str, db: Session, prompt_config: Dict[str, str]) -> Dict:
     """Process a single journal image through the complete pipeline"""
     print(f"Processing {image_path}...")
     
@@ -234,7 +264,7 @@ def process_journal_image(image_path: str, db: Session) -> Dict:
             continue
         
         # Analyze journal content
-        analysis = analyze_journal_block(block_text)
+        analysis = analyze_journal_block(block_text, prompt_config)
         
         # Generate embedding
         embedding = embed(block_text)
@@ -270,9 +300,13 @@ def process_journal_image(image_path: str, db: Session) -> Dict:
     
     return {"processed": processed_entries}
 
-def ingest_journal_images(image_paths: List[str]) -> Dict:
+def ingest_journal_images(image_paths: List[str], prompt_config_path: str = "prompt_config.json") -> Dict:
     """Main pipeline function to process multiple journal images"""
     db = next(get_db())
+    
+    # Load prompt configuration
+    prompt_config = load_prompt_config(prompt_config_path)
+    print(f"Using prompt config: {prompt_config_path}")
     
     summary = {
         "processed": [],
@@ -286,7 +320,7 @@ def ingest_journal_images(image_paths: List[str]) -> Dict:
                 summary["errors"].append(f"File not found: {image_path}")
                 continue
             
-            result = process_journal_image(image_path, db)
+            result = process_journal_image(image_path, db, prompt_config)
             
             if "error" in result:
                 summary["errors"].append(f"{image_path}: {result['error']}")
@@ -302,15 +336,16 @@ def ingest_journal_images(image_paths: List[str]) -> Dict:
 
 def main():
     """CLI entry point"""
-    if len(sys.argv) < 2:
-        print("Usage: python ingest_journal_images.py page1.jpg page2.jpg ...")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Process journal images with OCR and AI analysis")
+    parser.add_argument("images", nargs="+", help="Image files to process")
+    parser.add_argument("--prompt", default="prompt_config.json", 
+                       help="Custom prompt configuration file (default: prompt_config.json)")
     
-    image_paths = sys.argv[1:]
+    args = parser.parse_args()
     
-    print(f"Starting journal image ingest pipeline for {len(image_paths)} images...")
+    print(f"Starting journal image ingest pipeline for {len(args.images)} images...")
     
-    summary = ingest_journal_images(image_paths)
+    summary = ingest_journal_images(args.images, args.prompt)
     
     # Print summary
     print("\n" + "="*50)
