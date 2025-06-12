@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, Heart, Tag, TrendingUp, Calendar, FileText } from "lucide-react";
+import { ArrowLeft, BarChart3, Heart, Tag, TrendingUp, Calendar, FileText, Brain } from "lucide-react";
 import { Link } from "wouter";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
@@ -57,22 +57,7 @@ export default function Insights() {
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 8);
 
-  // Sentiment trends
-  const sentimentData = completedEntries
-    .filter(entry => entry.sentimentAnalysis)
-    .map(entry => ({
-      date: new Date(entry.createdAt).toLocaleDateString(),
-      positive: entry.sentimentAnalysis!.positiveScore,
-      neutral: entry.sentimentAnalysis!.neutralScore,
-      concern: entry.sentimentAnalysis!.concernScore,
-      overall: entry.sentimentAnalysis!.overallSentiment
-    }));
 
-  const avgSentiment = sentimentData.length > 0 ? {
-    positive: Math.round(sentimentData.reduce((sum, d) => sum + d.positive, 0) / sentimentData.length),
-    neutral: Math.round(sentimentData.reduce((sum, d) => sum + d.neutral, 0) / sentimentData.length),
-    concern: Math.round(sentimentData.reduce((sum, d) => sum + d.concern, 0) / sentimentData.length)
-  } : null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -149,71 +134,17 @@ export default function Insights() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center">
-                    <Heart className="h-8 w-8 text-red-500" />
+                    <Brain className="h-8 w-8 text-blue-500" />
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Avg Positivity</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {avgSentiment ? `${avgSentiment.positive}%` : 'N/A'}
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Themes</p>
+                      <p className="text-2xl font-bold text-gray-900">{themeCounts.size}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Sentiment Overview */}
-            {avgSentiment && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Heart className="w-5 h-5 mr-2" />
-                    Overall Emotional Patterns
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Positive Emotions</span>
-                        <span className="text-sm font-medium">{avgSentiment.positive}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-green-500 h-3 rounded-full" 
-                          style={{ width: `${avgSentiment.positive}%` }}
-                        ></div>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Neutral Content</span>
-                        <span className="text-sm font-medium">{avgSentiment.neutral}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-gray-500 h-3 rounded-full" 
-                          style={{ width: `${avgSentiment.neutral}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Areas of Concern</span>
-                        <span className="text-sm font-medium">{avgSentiment.concern}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-red-500 h-3 rounded-full" 
-                          style={{ width: `${avgSentiment.concern}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Top Themes */}
             {topThemes.length > 0 && (

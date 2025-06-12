@@ -53,35 +53,7 @@ export default function AIAnalysis({ entry }: AIAnalysisProps) {
             </div>
           </div>
 
-          {/* Emotional Tone */}
-          {sentimentAnalysis && (
-            <div className="bg-amber-50 rounded-lg p-4">
-              <h4 className="font-semibold text-[#F59E0B] mb-3 flex items-center">
-                <Star className="w-4 h-4 mr-2" />
-                Emotional Tone
-              </h4>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-[#10B981]">
-                    {sentimentAnalysis.positiveScore}%
-                  </div>
-                  <div className="text-sm text-gray-600">Positive</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-500">
-                    {sentimentAnalysis.neutralScore}%
-                  </div>
-                  <div className="text-sm text-gray-600">Neutral</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-amber-600">
-                    {sentimentAnalysis.concernScore}%
-                  </div>
-                  <div className="text-sm text-gray-600">Concern</div>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Reflection Questions */}
           <div className="bg-indigo-50 rounded-lg p-4">
