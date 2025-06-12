@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
@@ -270,7 +270,10 @@ async def get_search_stats():
 
 # Journal image upload endpoint
 @app.post("/upload-images")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(
+    files: List[UploadFile] = File(...),
+    prompt_file: Optional[str] = Form(None)
+):
     """Upload and process 1-100 journal images through the ingest pipeline"""
     import uuid
     import aiofiles
@@ -285,6 +288,9 @@ async def upload_images(files: List[UploadFile] = File(...)):
     for file in files:
         if not file.content_type or file.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
+    
+    # Determine prompt configuration file
+    prompt_config_path = prompt_file if prompt_file else "prompt_config.json"
     
     # Create uploads directory if it doesn't exist
     uploads_dir = "uploads"
@@ -307,8 +313,8 @@ async def upload_images(files: List[UploadFile] = File(...)):
             
             saved_files.append(file_path)
         
-        # Process images through ingest pipeline
-        summary = ingest_journal_images(saved_files)
+        # Process images through ingest pipeline with prompt configuration
+        summary = ingest_journal_images(saved_files, prompt_config_path)
         
         # Format response
         processed_entries = []
@@ -322,7 +328,8 @@ async def upload_images(files: List[UploadFile] = File(...)):
             "processed": processed_entries,
             "skipped_duplicates": [os.path.basename(f) for f in saved_files 
                                  if os.path.basename(f) in summary.get("skipped_duplicates", [])],
-            "errors": summary.get("errors", [])
+            "errors": summary.get("errors", []),
+            "prompt_config_used": prompt_config_path
         }
         
     except Exception as e:
