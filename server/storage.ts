@@ -229,6 +229,13 @@ export class DatabaseStorage implements IStorage {
     return entriesWithDetails;
   }
 
+  async getAllJournalEntries(): Promise<JournalEntry[]> {
+    return await db
+      .select()
+      .from(journalEntries)
+      .orderBy(desc(journalEntries.createdAt));
+  }
+
   async createTheme(theme: InsertTheme): Promise<Theme> {
     const [createdTheme] = await db
       .insert(themes)

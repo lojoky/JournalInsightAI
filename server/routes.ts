@@ -1053,7 +1053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { imageId } = req.params;
       
-      // Extract entry ID from the image URL
+      // Find entry by matching the image ID in originalImageUrl
       const entries = await storage.getAllJournalEntries();
       const entry = entries.find(e => e.originalImageUrl?.includes(imageId));
       
