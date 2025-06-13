@@ -206,6 +206,8 @@ export const insertJournalEntrySchema = createInsertSchema(journalEntries).pick(
   userId: true,
   title: true,
   originalImageUrl: true,
+  imageData: true,
+  imageMimeType: true,
   transcribedText: true,
   ocrConfidence: true,
   processingStatus: true,

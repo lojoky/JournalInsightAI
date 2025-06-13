@@ -45,6 +45,7 @@ export interface IStorage {
   updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
   getJournalEntry(id: number, userId?: number): Promise<JournalEntryWithDetails | undefined>;
   getJournalEntriesByUser(userId: number, limit?: number): Promise<JournalEntryWithDetails[]>;
+  getAllJournalEntries(): Promise<JournalEntry[]>;
 
   // Theme methods
   createTheme(theme: InsertTheme): Promise<Theme>;

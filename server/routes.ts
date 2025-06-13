@@ -23,6 +23,7 @@ import {
 } from "@shared/schema";
 import { analyzeJournalEntry, analyzeSentiment, extractTextFromImage } from "./openai";
 import { retryFailedEntries } from "./retry-processing";
+import { convertImageToBase64, convertBase64ToBuffer, isImageSizeAcceptable } from "./image-storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -679,13 +680,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const { title } = req.body;
 
-      // Convert absolute file path to web URL
-      const filename = path.basename(req.file.path);
-      const webImageUrl = `/uploads/${filename}`;
-
-      // Check for duplicate image
-      let imageHash;
+      // Convert image to base64 for database storage
+      let imageData, imageMimeType, imageHash;
       try {
+        const imageInfo = convertImageToBase64(req.file.path);
+        imageData = imageInfo.data;
+        imageMimeType = imageInfo.mimeType;
+
+        // Check image size
+        if (!isImageSizeAcceptable(imageData)) {
+          return res.status(400).json({ 
+            message: "Image file too large. Please use a smaller image (max 10MB)."
+          });
+        }
+
+        // Check for duplicate image
         const { computeImageHash } = await import('./image-hash');
         imageHash = await computeImageHash(req.file.path);
         
@@ -698,10 +707,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Create database URL for image serving
+        const imageUrl = `/api/images/${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
         entry = await storage.createJournalEntry({
           userId,
           title: title || "Untitled Entry",
-          originalImageUrl: webImageUrl,
+          originalImageUrl: imageUrl,
+          imageData,
+          imageMimeType,
           transcribedText: "",
           ocrConfidence: 0,
           processingStatus: "processing",
@@ -709,19 +723,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.json(entry);
-      } catch (hashError) {
-        console.error(`Error computing hash for ${req.file.originalname}:`, hashError);
-        // If hashing fails, proceed without hash
-        entry = await storage.createJournalEntry({
-          userId,
-          title: title || "Untitled Entry",
-          originalImageUrl: webImageUrl,
-          transcribedText: "",
-          ocrConfidence: 0,
-          processingStatus: "processing"
+      } catch (error) {
+        console.error(`Error processing image for ${req.file.originalname}:`, error);
+        return res.status(500).json({ 
+          message: "Failed to process image. Please try again."
         });
-
-        res.json(entry);
       }
 
       // Process asynchronously
@@ -1039,6 +1045,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get Notion integration error:", error);
       res.status(500).json({ message: "Failed to get Notion integration status" });
+    }
+  });
+
+  // Serve images from database
+  app.get("/api/images/:imageId", async (req, res) => {
+    try {
+      const { imageId } = req.params;
+      
+      // Extract entry ID from the image URL
+      const entries = await storage.getAllJournalEntries();
+      const entry = entries.find(e => e.originalImageUrl?.includes(imageId));
+      
+      if (!entry || !entry.imageData || !entry.imageMimeType) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+
+      const imageBuffer = convertBase64ToBuffer(entry.imageData);
+      
+      res.set({
+        'Content-Type': entry.imageMimeType,
+        'Content-Length': imageBuffer.length,
+        'Cache-Control': 'public, max-age=31536000' // Cache for 1 year
+      });
+      
+      res.send(imageBuffer);
+    } catch (error) {
+      console.error("Error serving image:", error);
+      res.status(500).json({ message: "Failed to serve image" });
     }
   });
 
