@@ -17,6 +17,7 @@ dependencies = [
     "pytesseract>=0.3.13",
     "python-dotenv>=1.1.0",
     "python-multipart>=0.0.20",
+    "requests>=2.32.4",
     "sqlalchemy>=2.0.41",
     "uuid>=1.30",
     "uvicorn>=0.34.3",

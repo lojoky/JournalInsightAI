@@ -363,6 +363,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Journal entry routes
+  app.post("/api/journal-entries", requireAuth, async (req, res) => {
+    try {
+      const { title, transcribedText, processingStatus = "completed" } = req.body;
+      
+      if (!title || !transcribedText) {
+        return res.status(400).json({ message: "Title and transcribed text are required" });
+      }
+
+      const entry = await storage.createJournalEntry({
+        userId: req.session.userId!,
+        title,
+        transcribedText,
+        processingStatus,
+        originalImageUrl: null,
+        ocrConfidence: null,
+        imageHash: null,
+        transcriptHash: null
+      });
+
+      res.json(entry);
+    } catch (error) {
+      console.error("Create entry error:", error);
+      res.status(500).json({ message: "Failed to create journal entry" });
+    }
+  });
+
   app.get("/api/journal-entries", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;

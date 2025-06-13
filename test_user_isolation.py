@@ -57,10 +57,16 @@ class TestUserIsolation:
             "processingStatus": "completed"
         })
         
+        print(f"Create entry response: {response.status_code}, content: {response.text[:200]}")
+        
         if response.status_code == 200:
-            data = response.json()
-            print(f"✓ Journal entry created successfully (ID: {data['id']})")
-            return data
+            if response.text.strip():
+                data = response.json()
+                print(f"✓ Journal entry created successfully (ID: {data['id']})")
+                return data
+            else:
+                print("✗ Empty response from server")
+                return None
         else:
             print(f"✗ Failed to create journal entry: {response.text}")
             return None
