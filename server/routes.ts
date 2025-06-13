@@ -377,9 +377,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/journal-entries/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const entry = await storage.getJournalEntry(id);
+      const entry = await storage.getJournalEntry(id, req.session.userId!);
       
-      if (!entry || entry.userId !== req.session.userId) {
+      if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
       
@@ -394,8 +394,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       
-      const entry = await storage.getJournalEntry(id);
-      if (!entry || entry.userId !== req.session.userId) {
+      const entry = await storage.getJournalEntry(id, req.session.userId!);
+      if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
 
@@ -427,9 +427,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Transcribed text is required" });
       }
       
-      const entry = await storage.getJournalEntry(id);
-      if (!entry || entry.userId !== req.session.userId) {
-        console.log(`Entry not found or access denied for entry ${id}`);
+      const entry = await storage.getJournalEntry(id, req.session.userId!);
+      if (!entry) {
+        console.log(`Entry not found for entry ${id}`);
         return res.status(404).json({ message: "Entry not found" });
       }
 
@@ -441,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Sync to Notion if integration is set up
       try {
-        const updatedEntryWithDetails = await storage.getJournalEntry(id);
+        const updatedEntryWithDetails = await storage.getJournalEntry(id, req.session.userId!);
         if (updatedEntryWithDetails) {
           const syncSuccess = await syncJournalEntryToNotion(updatedEntryWithDetails);
           if (syncSuccess) {

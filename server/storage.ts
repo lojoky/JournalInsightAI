@@ -43,7 +43,7 @@ export interface IStorage {
   // Journal entry methods
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
   updateJournalEntry(id: number, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
-  getJournalEntry(id: number): Promise<JournalEntryWithDetails | undefined>;
+  getJournalEntry(id: number, userId?: number): Promise<JournalEntryWithDetails | undefined>;
   getJournalEntriesByUser(userId: number, limit?: number): Promise<JournalEntryWithDetails[]>;
 
   // Theme methods
@@ -157,8 +157,12 @@ export class DatabaseStorage implements IStorage {
     return journalEntry;
   }
 
-  async getJournalEntry(id: number): Promise<JournalEntryWithDetails | undefined> {
-    const [entry] = await db.select().from(journalEntries).where(eq(journalEntries.id, id));
+  async getJournalEntry(id: number, userId?: number): Promise<JournalEntryWithDetails | undefined> {
+    const whereCondition = userId 
+      ? and(eq(journalEntries.id, id), eq(journalEntries.userId, userId))
+      : eq(journalEntries.id, id);
+    
+    const [entry] = await db.select().from(journalEntries).where(whereCondition);
     if (!entry) return undefined;
 
     const [entryThemes, entryTagsData, sentiment] = await Promise.all([
