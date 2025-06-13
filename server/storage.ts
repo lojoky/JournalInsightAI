@@ -625,21 +625,33 @@ export class DatabaseStorage implements IStorage {
     return entry || undefined;
   }
 
-  // Duplicate detection methods
+  // Duplicate detection methods - only check existing (non-deleted) entries
   async getJournalEntryByImageHash(imageHash: string): Promise<JournalEntry | undefined> {
-    const [entry] = await db
-      .select()
-      .from(journalEntries)
-      .where(eq(journalEntries.imageHash, imageHash));
-    return entry || undefined;
+    try {
+      const [entry] = await db
+        .select()
+        .from(journalEntries)
+        .where(eq(journalEntries.imageHash, imageHash));
+      return entry || undefined;
+    } catch (error) {
+      // If entry was deleted, the query will fail or return nothing
+      console.log(`Image hash ${imageHash} not found in existing entries (likely deleted)`);
+      return undefined;
+    }
   }
 
   async getJournalEntryByTranscriptHash(transcriptHash: string): Promise<JournalEntry | undefined> {
-    const [entry] = await db
-      .select()
-      .from(journalEntries)
-      .where(eq(journalEntries.transcriptHash, transcriptHash));
-    return entry || undefined;
+    try {
+      const [entry] = await db
+        .select()
+        .from(journalEntries)
+        .where(eq(journalEntries.transcriptHash, transcriptHash));
+      return entry || undefined;
+    } catch (error) {
+      // If entry was deleted, the query will fail or return nothing
+      console.log(`Transcript hash ${transcriptHash} not found in existing entries (likely deleted)`);
+      return undefined;
+    }
   }
 }
 
