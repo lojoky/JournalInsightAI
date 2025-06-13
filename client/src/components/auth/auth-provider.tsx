@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 interface User {
   id: number;
@@ -66,8 +67,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
+      // Clear all cached data on logout to prevent data leaks
+      queryClient.clear();
     }
   };
+
+  // Clear cache when user ID changes to prevent cross-user data leaks
+  useEffect(() => {
+    if (user?.id) {
+      // Clear all cached data when switching between users
+      queryClient.clear();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     checkAuth();

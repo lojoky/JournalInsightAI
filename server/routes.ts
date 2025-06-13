@@ -469,8 +469,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { title, transcribedText } = req.body;
       
-      const entry = await storage.getJournalEntry(id);
-      if (!entry || entry.userId !== req.session.userId) {
+      const entry = await storage.getJournalEntry(id, req.session.userId!);
+      if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
 
@@ -535,8 +535,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const entryId of validIds) {
         try {
           // Verify the entry belongs to the user
-          const entry = await storage.getJournalEntry(entryId);
-          if (!entry || entry.userId !== req.session.userId) {
+          const entry = await storage.getJournalEntry(entryId, req.session.userId!);
+          if (!entry) {
             errors.push({ entryId, error: "Entry not found or unauthorized" });
             continue;
           }
@@ -571,8 +571,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid entry ID" });
       }
       
-      const entry = await storage.getJournalEntry(id);
-      if (!entry || entry.userId !== req.session.userId) {
+      const entry = await storage.getJournalEntry(id, req.session.userId!);
+      if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
 
