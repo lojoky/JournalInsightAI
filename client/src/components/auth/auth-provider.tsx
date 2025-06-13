@@ -32,6 +32,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [previousUserId, setPreviousUserId] = useState<number | null>(null);
 
   const checkAuth = async () => {
     try {
@@ -54,6 +55,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = (userData: User) => {
+    // Clear cache before setting new user to prevent data leaks
+    queryClient.clear();
     setUser(userData);
   };
 
@@ -66,19 +69,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      setUser(null);
-      // Clear all cached data on logout to prevent data leaks
+      // Clear cache before setting user to null
       queryClient.clear();
+      setUser(null);
+      setPreviousUserId(null);
     }
   };
 
-  // Clear cache when user ID changes to prevent cross-user data leaks
+  // Clear cache when user changes to prevent cross-user data leaks
   useEffect(() => {
-    if (user?.id) {
-      // Clear all cached data when switching between users
+    const currentUserId = user?.id || null;
+    
+    // If user ID changed (including null to non-null or vice versa)
+    if (currentUserId !== previousUserId) {
+      // Clear cache on any user change
       queryClient.clear();
+      setPreviousUserId(currentUserId);
     }
-  }, [user?.id]);
+  }, [user?.id, previousUserId]);
 
   useEffect(() => {
     checkAuth();

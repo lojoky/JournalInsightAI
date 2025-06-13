@@ -4,15 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3, Heart, Tag, TrendingUp, Calendar, FileText, Brain } from "lucide-react";
 import { Link } from "wouter";
+import { useAuth } from "@/components/auth/auth-provider";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function Insights() {
+  const { user } = useAuth();
+  
   const { data: entries, isLoading } = useQuery({
-    queryKey: ['/api/journal-entries'],
+    queryKey: ['/api/journal-entries', user?.id],
     queryFn: async () => {
       const response = await fetch('/api/journal-entries');
       return response.json() as Promise<JournalEntryWithDetails[]>;
-    }
+    },
+    enabled: !!user?.id,
+    staleTime: 0
   });
 
   if (isLoading) {

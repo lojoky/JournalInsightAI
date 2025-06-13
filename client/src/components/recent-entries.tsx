@@ -2,15 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bookmark, Clock } from "lucide-react";
 import { Link } from "wouter";
+import { useAuth } from "@/components/auth/auth-provider";
 import type { JournalEntryWithDetails } from "@shared/schema";
 
 export default function RecentEntries() {
+  const { user } = useAuth();
+  
   const { data: entries, isLoading, error } = useQuery<JournalEntryWithDetails[]>({
-    queryKey: ["/api/journal-entries"],
+    queryKey: ["/api/journal-entries", user?.id],
     queryFn: async () => {
       const response = await fetch('/api/journal-entries?limit=6');
       return response.json() as Promise<JournalEntryWithDetails[]>;
-    }
+    },
+    enabled: !!user?.id,
+    staleTime: 0
   });
 
   if (isLoading) {
