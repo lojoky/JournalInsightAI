@@ -62,6 +62,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
+      // Clear cache first to prevent data leaks
+      queryClient.clear();
+      
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
@@ -69,10 +72,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Clear cache before setting user to null
-      queryClient.clear();
       setUser(null);
       setPreviousUserId(null);
+      
+      // Clear cache again after logout to ensure clean state
+      setTimeout(() => {
+        queryClient.clear();
+      }, 100);
     }
   };
 
@@ -82,8 +88,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     // If user ID changed (including null to non-null or vice versa)
     if (currentUserId !== previousUserId) {
-      // Clear cache on any user change
+      // Aggressive cache clearing to prevent deployment data leaks
       queryClient.clear();
+      
+      // Additional cache invalidation for specific queries
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/journal-entries'] 
+      });
+      
+      // Force remove all cached data
+      queryClient.removeQueries();
+      
       setPreviousUserId(currentUserId);
     }
   }, [user?.id, previousUserId]);
