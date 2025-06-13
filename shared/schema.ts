@@ -15,6 +15,8 @@ export const journalEntries = pgTable("journal_entries", {
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   originalImageUrl: text("original_image_url"),
+  imageData: text("image_data"), // Base64-encoded image data for persistence
+  imageMimeType: text("image_mime_type"), // MIME type (image/jpeg, image/png, etc.)
   transcribedText: text("transcribed_text"),
   ocrConfidence: integer("ocr_confidence"), // percentage 0-100
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, failed
